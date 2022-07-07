@@ -6,7 +6,7 @@
   <name>aruco_opencv</name>
   <version>0.0.0</version>
   <description>
-    ArUco marker detection using opencv libraries.
+    ArUco marker detection using aruco module from OpenCV libraries.
   </description>
 
   <maintainer email="support@fictionlab.pl">Fictionlab</maintainer>
