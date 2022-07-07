@@ -97,7 +97,8 @@ private:
     cam_info_sub_ =
         nh.subscribe(cam_info_topic, 1, &SingleMarkerTracker::callback_camera_info, this);
 
-    img_sub_ = it_->subscribe(cam_base_topic_, 1, &SingleMarkerTracker::callback_image, this);
+    img_sub_ = it_->subscribe(cam_base_topic_, image_queue_size_,
+                              &SingleMarkerTracker::callback_image, this);
   }
 
   void retrieve_parameters(ros::NodeHandle &pnh) {
@@ -144,10 +145,6 @@ private:
       distortion_coeffs_.at<double>(i, 0) = cam_info.D[i];
 
     cam_info_retrieved_ = true;
-
-    ROS_INFO_STREAM("Camera matrix: " << camera_matrix_);
-    ROS_INFO_STREAM("Distortion: " << distortion_coeffs_);
-
     cam_info_sub_.shutdown();
   }
 
