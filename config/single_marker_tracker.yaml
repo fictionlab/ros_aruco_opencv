@@ -21,3 +21,7 @@ perspectiveRemoveIgnoredMarginPerCell: 0.13
 maxErroneousBitsInBorderRate: 0.35
 minOtsuStdDev: 5.0
 errorCorrectionRate: 0.6
+cornerRefinementMethod: 0 # 0 - None, 1 - Subpix, 2 - Contour, 3 - Apriltag
+cornerRefinementWinSize: 5
+cornerRefinementMaxIterations: 30
+cornerRefinementMinAccuracy: 0.1

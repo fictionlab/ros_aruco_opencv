@@ -131,6 +131,10 @@ private:
     detector_parameters_->maxErroneousBitsInBorderRate = config.maxErroneousBitsInBorderRate;
     detector_parameters_->minOtsuStdDev = config.minOtsuStdDev;
     detector_parameters_->errorCorrectionRate = config.errorCorrectionRate;
+    detector_parameters_->cornerRefinementMethod = config.cornerRefinementMethod;
+    detector_parameters_->cornerRefinementWinSize = config.cornerRefinementWinSize;
+    detector_parameters_->cornerRefinementMaxIterations = config.cornerRefinementMaxIterations;
+    detector_parameters_->cornerRefinementMinAccuracy = config.cornerRefinementMinAccuracy;
   }
 
   void callback_camera_info(const sensor_msgs::CameraInfo &cam_info) {
