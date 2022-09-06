@@ -60,6 +60,9 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
 
+  // Thread safety
+  std::mutex cam_info_mutex_;
+
 public:
   SingleMarkerTracker()
       : camera_matrix_(3, 3, CV_64FC1), distortion_coeffs_(4, 1, CV_64FC1),
@@ -91,7 +94,7 @@ private:
     detection_pub_ = nh.advertise<aruco_opencv::MarkerDetection>("marker_detections", 5);
     debug_pub_ = pit_->advertise("debug", 1);
 
-    NODELET_INFO("Waiting for camera info...");
+    NODELET_INFO("Waiting for first camera info...");
 
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
     cam_info_sub_ =
@@ -104,7 +107,7 @@ private:
   void retrieve_parameters(ros::NodeHandle &pnh) {
     pnh.param<std::string>("cam_base_topic", cam_base_topic_, "camera/image_raw");
     pnh.param<double>("marker_size", marker_size_, 0.15);
-    pnh.param<int>("image_queue_size", image_queue_size_, 5);
+    pnh.param<int>("image_queue_size", image_queue_size_, 1);
   }
 
   void reconfigure_callback(aruco_opencv::ArucoDetectorConfig &config, uint32_t level) {
@@ -138,7 +141,7 @@ private:
   }
 
   void callback_camera_info(const sensor_msgs::CameraInfo &cam_info) {
-    NODELET_INFO("Camera info retrieved.");
+    std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
     cv::Mat cameraMatrixFromK(3, 3, CV_64FC1, 0.0);
     for (int i = 0; i < 9; ++i)
@@ -148,8 +151,10 @@ private:
     for (int i = 0; i < 4; ++i)
       distortion_coeffs_.at<double>(i, 0) = cam_info.D[i];
 
-    cam_info_retrieved_ = true;
-    cam_info_sub_.shutdown();
+    if (!cam_info_retrieved_) {
+      NODELET_INFO("First camera info retrieved.");
+      cam_info_retrieved_ = true;
+    }
   }
 
   void callback_image(const sensor_msgs::ImageConstPtr &img_msg) {
@@ -174,6 +179,7 @@ private:
     detection.header.frame_id = img_msg->header.frame_id;
     detection.header.stamp = img_msg->header.stamp;
 
+    cam_info_mutex_.lock();
     for (size_t i = 0; i < n_markers; i++) {
       int id = marker_ids[i];
 
@@ -191,6 +197,7 @@ private:
       mpose.pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
       detection.markers.push_back(mpose);
     }
+    cam_info_mutex_.unlock();
 
     detection_pub_.publish(detection);
 
