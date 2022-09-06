@@ -10,6 +10,7 @@
 #include <image_transport/camera_common.h>
 #include <image_transport/image_transport.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_listener.h>
 
 #include <aruco_opencv/ArucoDetectorConfig.h>
 #include <aruco_opencv/MarkerDetection.h>
@@ -40,6 +41,8 @@ class SingleMarkerTracker : public nodelet::Nodelet {
 
   // Parameters
   std::string cam_base_topic_;
+  std::string output_frame_;
+  bool transform_poses_;
   double marker_size_;
   int image_queue_size_;
 
@@ -63,6 +66,10 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   // Thread safety
   std::mutex cam_info_mutex_;
 
+  // Tf2
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener *tf_listener_;
+
 public:
   SingleMarkerTracker()
       : camera_matrix_(3, 3, CV_64FC1), distortion_coeffs_(4, 1, CV_64FC1),
@@ -74,8 +81,13 @@ private:
     auto &pnh = getPrivateNodeHandle();
 
     retrieve_parameters(pnh);
+    transform_poses_ = !output_frame_.empty();
+
+    if (transform_poses_)
+      tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
 
     detector_parameters_ = cv::aruco::DetectorParameters::create();
+    // TODO: Add parameter for dictionary
     dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
 
     dyn_srv_ = new dynamic_reconfigure::Server<aruco_opencv::ArucoDetectorConfig>(pnh);
@@ -106,6 +118,7 @@ private:
 
   void retrieve_parameters(ros::NodeHandle &pnh) {
     pnh.param<std::string>("cam_base_topic", cam_base_topic_, "camera/image_raw");
+    pnh.param<std::string>("output_frame", output_frame_, "");
     pnh.param<double>("marker_size", marker_size_, 0.15);
     pnh.param<int>("image_queue_size", image_queue_size_, 1);
   }
@@ -198,6 +211,21 @@ private:
       detection.markers.push_back(mpose);
     }
     cam_info_mutex_.unlock();
+
+    if (transform_poses_) {
+      detection.header.frame_id = output_frame_;
+      geometry_msgs::TransformStamped cam_to_output;
+      // Retrieve camera -> output_frame transform
+      try {
+        cam_to_output = tf_buffer_.lookupTransform(output_frame_, img_msg->header.frame_id,
+                                                   img_msg->header.stamp, ros::Duration(1.0));
+      } catch (tf2::TransformException &ex) {
+        ROS_WARN("%s", ex.what());
+        return;
+      }
+      for (auto &marker_pose : detection.markers)
+        tf2::doTransform(marker_pose.pose, marker_pose.pose, cam_to_output);
+    }
 
     detection_pub_.publish(detection);
 
