@@ -169,11 +169,8 @@ private:
   void callback_camera_info(const sensor_msgs::CameraInfo &cam_info) {
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
-    cv::Mat cameraMatrixFromK(3, 3, CV_64FC1, 0.0);
     for (int i = 0; i < 9; ++i)
-      cameraMatrixFromK.at<double>(i % 3, i - (i % 3) * 3) = cam_info.K[i];
-    cameraMatrixFromK.copyTo(camera_matrix_(cv::Rect(0, 0, 3, 3)));
-
+      camera_matrix_.at<double>(i / 3, i % 3) = cam_info.K[i];
     for (int i = 0; i < 4; ++i)
       distortion_coeffs_.at<double>(i, 0) = cam_info.D[i];
 
