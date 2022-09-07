@@ -1,3 +1,5 @@
+#include <mutex>
+
 #include <opencv2/aruco.hpp>
 #include <opencv2/calib3d.hpp>
 
@@ -154,7 +156,11 @@ private:
     detector_parameters_->maxErroneousBitsInBorderRate = config.maxErroneousBitsInBorderRate;
     detector_parameters_->minOtsuStdDev = config.minOtsuStdDev;
     detector_parameters_->errorCorrectionRate = config.errorCorrectionRate;
+#if CV_VERSION_MAJOR >= 4
     detector_parameters_->cornerRefinementMethod = config.cornerRefinementMethod;
+#else
+    detector_parameters_->doCornerRefinement = config.cornerRefinementMethod == 1
+#endif
     detector_parameters_->cornerRefinementWinSize = config.cornerRefinementWinSize;
     detector_parameters_->cornerRefinementMaxIterations = config.cornerRefinementMaxIterations;
     detector_parameters_->cornerRefinementMinAccuracy = config.cornerRefinementMinAccuracy;
@@ -203,14 +209,13 @@ private:
     for (size_t i = 0; i < n_markers; i++) {
       int id = marker_ids[i];
 
-      std::vector<cv::Vec3d> rvecs(n_markers), tvecs(n_markers);
-
-      cv::solvePnPGeneric(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                          rvecs, tvecs, false, cv::SOLVEPNP_IPPE_SQUARE);
-
-      // Choose the solution with lower reprojection error
-      rvec_final[i] = rvecs[0];
-      tvec_final[i] = tvecs[0];
+#if CV_VERSION_MAJOR >= 4
+      cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+                          rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+#else
+      cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+                          rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
+#endif
 
       MarkerPose mpose;
       mpose.marker_id = id;
