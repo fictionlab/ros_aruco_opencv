@@ -159,7 +159,7 @@ private:
 #if CV_VERSION_MAJOR >= 4
     detector_parameters_->cornerRefinementMethod = config.cornerRefinementMethod;
 #else
-    detector_parameters_->doCornerRefinement = config.cornerRefinementMethod == 1
+    detector_parameters_->doCornerRefinement = config.cornerRefinementMethod == 1;
 #endif
     detector_parameters_->cornerRefinementWinSize = config.cornerRefinementWinSize;
     detector_parameters_->cornerRefinementMaxIterations = config.cornerRefinementMaxIterations;
@@ -211,10 +211,10 @@ private:
 
 #if CV_VERSION_MAJOR >= 4
       cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                          rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+                   rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
 #else
       cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                          rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
+                   rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
 #endif
 
       MarkerPose mpose;
@@ -260,9 +260,15 @@ private:
       auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
       for (size_t i = 0; i < marker_ids.size(); i++) {
+#if CV_VERSION_MAJOR >= 4
         cv::drawFrameAxes(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
                           tvec_final[i], 0.2, 3);
+#else
+        cv::aruco::drawAxis(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
+                            tvec_final[i], 0.2);
+#endif
       }
+
       debug_pub_.publish(debug_cv_ptr->toImageMsg());
     }
 
