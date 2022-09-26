@@ -1,7 +1,0 @@
-<library path="lib/libaruco_opencv">
-    <class name="aruco_opencv/SingleMarkerTracker" type="aruco_opencv::SingleMarkerTracker" base_class_type="nodelet::Nodelet">
-        <description>
-            Tracks positions of single ArUco markers.
-        </description>
-    </class>
-</library>

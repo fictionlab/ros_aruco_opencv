@@ -4,7 +4,7 @@
   schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>aruco_opencv</name>
-  <version>0.2.0</version>
+  <version>0.0.0</version>
   <description>
     ArUco marker detection using aruco module from OpenCV libraries.
   </description>
@@ -15,9 +15,9 @@
 
   <author email="blazej@fictionlab.pl">Błażej Sowa</author>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>roscpp</build_depend>
+  <!-- <build_depend>roscpp</build_depend>
   <build_depend>image_transport</build_depend>
   <build_depend>tf2_ros</build_depend>
   <build_depend>tf2_geometry_msgs</build_depend>
@@ -32,10 +32,26 @@
   <exec_depend>tf2_geometry_msgs</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>nodelet</exec_depend>
-  <exec_depend>dynamic_reconfigure</exec_depend>
+  <exec_depend>dynamic_reconfigure</exec_depend> -->
+
+  <!-- <export>
+    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
+  </export> -->
+
+  <build_depend>rclcpp</build_depend>
+  <build_depend>rclcpp_components</build_depend>
+  <build_depend>aruco_opencv_msgs</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>image_transport</build_depend>
+
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>rclcpp_components</exec_depend>
+  <exec_depend>aruco_opencv_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>image_transport</exec_depend>
 
   <export>
-    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
+    <build_type>ament_cmake</build_type>
   </export>
 
 </package>

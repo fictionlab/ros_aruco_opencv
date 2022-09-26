@@ -1,8 +1,14 @@
 cam_base_topic: camera/image_raw
 output_frame: ''
+
+image_transport: raw
+image_sub_qos:
+  reliability: 2 # 0 - system default, 1 - reliable, 2 - best effort
+  durability: 2 # 0 - system default, 1 - transient local, 2 - volatile
+  depth: 1
+
 publish_tf: true
 marker_size: 0.100
-image_queue_size: 1
 
 # Dynamically reconfigurable Detector parameters
 # https://docs.opencv.org/4.2.0/d5/dae/tutorial_aruco_detection.html

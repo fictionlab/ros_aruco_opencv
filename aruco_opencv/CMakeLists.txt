@@ -1,45 +1,44 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(aruco_opencv)
 
-find_package(catkin REQUIRED COMPONENTS
-  aruco_opencv_msgs
-  cv_bridge
-  dynamic_reconfigure
-  image_transport
-  nodelet
-  roscpp
-  tf2_geometry_msgs
-  tf2_ros
-)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(aruco_opencv_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(image_transport REQUIRED)
 
-generate_dynamic_reconfigure_options(
-  cfg/ArucoDetector.cfg
-)
-
-catkin_package()
-
-include_directories(${catkin_INCLUDE_DIRS})
-
-add_library(${PROJECT_NAME}
+add_library(${PROJECT_NAME} SHARED
   src/single_marker_tracker.cpp
 )
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
-add_dependencies(${PROJECT_NAME}
-  ${PROJECT_NAME}_gencfg
+target_link_libraries(${PROJECT_NAME}
+  rclcpp::rclcpp
+  tf2_ros::tf2_ros
+  tf2_geometry_msgs::tf2_geometry_msgs
+)
+ament_target_dependencies(${PROJECT_NAME}
+  aruco_opencv_msgs
+  rclcpp_components
+  cv_bridge
+  image_transport
+)
+rclcpp_components_register_node(${PROJECT_NAME}
+  PLUGIN "aruco_opencv::SingleMarkerTracker"
+  EXECUTABLE "single_marker_tracker"
 )
 
 install(
   TARGETS ${PROJECT_NAME}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
-
-install(FILES nodelet_plugins.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
 )
 
 install(
   DIRECTORY
-    config
     launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  DESTINATION share/${PROJECT_NAME}
 )
+
+ament_package()

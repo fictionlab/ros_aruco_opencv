@@ -1,28 +1,15 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(aruco_opencv_msgs)
 
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  message_generation
-  std_msgs
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/MarkerDetection.msg"
+  "msg/MarkerPose.msg"
+  DEPENDENCIES std_msgs geometry_msgs
 )
 
-add_message_files(
-  DIRECTORY msg
-  FILES
-    MarkerDetection.msg
-    MarkerPose.msg
-)
-
-generate_messages(
-  DEPENDENCIES
-    geometry_msgs
-    std_msgs
-)
-
-catkin_package(
-  CATKIN_DEPENDS
-    geometry_msgs
-    message_runtime
-    std_msgs
-)
+ament_package()
