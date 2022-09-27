@@ -1,0 +1,49 @@
+name: CI-Foxy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - foxy
+  pull_request:
+    branches:
+      - foxy
+
+env:
+ ROS_DISTRO: foxy
+
+jobs:
+  industrial_ci:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        ROS_REPO: [testing, main]
+    env:
+      ROS_REPO: ${{ matrix.ROS_REPO }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - name: Source tests
+        uses: "ros-industrial/industrial_ci@master"
+
+  ament_lint:
+    name: ament_${{ matrix.linter }}
+    runs-on: ubuntu-20.04
+    container:
+      image: ubuntu:focal
+    strategy:
+      fail-fast: false
+      matrix:
+        linter: [copyright, lint_cmake, uncrustify, xmllint]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ros-tooling/setup-ros@v0.3
+        with:
+          required-ros-distributions: ${{ env.ROS_DISTRO }}
+      - uses: ros-tooling/action-ros-lint@v0.1
+        with:
+          distribution: foxy
+          linter: ${{ matrix.linter }}
+          package-name: |
+            aruco_opencv
+            aruco_opencv_msgs
