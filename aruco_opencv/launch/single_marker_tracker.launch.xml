@@ -1,0 +1,5 @@
+<launch version="0.1.1">
+  <node pkg="aruco_opencv" exec="single_marker_tracker">
+    <param from="$(find-pkg-share aruco_opencv)/config/single_marker_tracker.yaml" />
+  </node>
+</launch> 
