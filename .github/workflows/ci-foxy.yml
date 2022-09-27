@@ -30,16 +30,13 @@ jobs:
     name: ament_${{ matrix.linter }}
     runs-on: ubuntu-20.04
     container:
-      image: ubuntu:focal
+      image: ros:foxy
     strategy:
       fail-fast: false
       matrix:
         linter: [copyright, lint_cmake, uncrustify, xmllint]
     steps:
       - uses: actions/checkout@v3
-      - uses: ros-tooling/setup-ros@v0.3
-        with:
-          required-ros-distributions: ${{ env.ROS_DISTRO }}
       - uses: ros-tooling/action-ros-lint@v0.1
         with:
           distribution: foxy
