@@ -25,6 +25,7 @@
 #include <opencv2/calib3d.hpp>
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 #include "cv_bridge/cv_bridge.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
@@ -32,12 +33,12 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
-
-// #include <image_transport/camera_common.h>
+#include "sensor_msgs/msg/image.hpp"
 #include "image_transport/camera_common.hpp"
-#include "image_transport/image_transport.hpp"
 
 #include "aruco_opencv_msgs/msg/marker_detection.hpp"
+
+using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
 namespace aruco_opencv
 {
@@ -63,7 +64,7 @@ inline geometry_msgs::msg::Pose convert_rvec_tvec(const cv::Vec3d & rvec, const 
   return pose_out;
 }
 
-class SingleMarkerTracker : public rclcpp::Node
+class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
 {
 
   // Parameters
@@ -79,11 +80,12 @@ class SingleMarkerTracker : public rclcpp::Node
 
   // ROS
   OnSetParametersCallbackHandle::SharedPtr on_set_parameter_callback_handle_;
-  rclcpp::Publisher<aruco_opencv_msgs::msg::MarkerDetection>::SharedPtr detection_pub_;
+  rclcpp_lifecycle::LifecyclePublisher<aruco_opencv_msgs::msg::MarkerDetection>::SharedPtr
+    detection_pub_;
+  rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr img_sub_;
   bool cam_info_retrieved_ = false;
-  image_transport::Subscriber img_sub_;
-  image_transport::Publisher debug_pub_;
 
   // Aruco
   cv::Mat camera_matrix_;
@@ -96,32 +98,53 @@ class SingleMarkerTracker : public rclcpp::Node
   std::mutex cam_info_mutex_;
 
   // Tf2
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener * tf_listener_;
-  tf2_ros::TransformBroadcaster * tf_broadcaster_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
 public:
   SingleMarkerTracker(rclcpp::NodeOptions options)
-  : Node("single_marker_tracker", options), camera_matrix_(3, 3, CV_64FC1),
+  : LifecycleNode("single_marker_tracker", options), camera_matrix_(3, 3, CV_64FC1),
     distortion_coeffs_(4, 1, CV_64FC1),
-    marker_obj_points_(4, 1, CV_32FC3),
-    tf_buffer_(get_clock())
+    marker_obj_points_(4, 1, CV_32FC3)
+  {}
+
+  LifecycleNodeInterface::CallbackReturn
+  on_configure(const rclcpp_lifecycle::State &)
   {
+    RCLCPP_INFO(get_logger(), "Configuring");
+
     detector_parameters_ = cv::aruco::DetectorParameters::create();
+
     // TODO: Add parameter for dictionary
     dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
 
     retrieve_parameters();
 
-    if (transform_poses_) {
-      tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
-    }
+    update_marker_obj_points();
 
     if (publish_tf_) {
-      tf_broadcaster_ = new tf2_ros::TransformBroadcaster(*this);
+      tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
     }
 
-    update_marker_obj_points();
+    detection_pub_ = create_publisher<aruco_opencv_msgs::msg::MarkerDetection>(
+      "marker_detections", 5);
+    debug_pub_ = create_publisher<sensor_msgs::msg::Image>("~/debug", 5);
+
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  }
+
+  LifecycleNodeInterface::CallbackReturn on_activate(const rclcpp_lifecycle::State & state)
+  {
+    RCLCPP_INFO(get_logger(), "Activating");
+
+    if (transform_poses_) {
+      tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+      tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    }
+
+    detection_pub_->on_activate();
+    debug_pub_->on_activate();
 
     on_set_parameter_callback_handle_ =
       add_on_set_parameters_callback(
@@ -129,11 +152,9 @@ public:
         &SingleMarkerTracker::callback_on_set_parameters,
         this, std::placeholders::_1));
 
-    detection_pub_ = create_publisher<aruco_opencv_msgs::msg::MarkerDetection>(
-      "marker_detections", 5);
-    debug_pub_ = image_transport::create_publisher(this, "~/debug");
-
     RCLCPP_INFO(get_logger(), "Waiting for first camera info...");
+
+    cam_info_retrieved_ = false;
 
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
     cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
@@ -146,12 +167,58 @@ public:
     image_sub_qos.durability = static_cast<rmw_qos_durability_policy_t>(image_sub_qos_durability_);
     image_sub_qos.depth = image_sub_qos_depth_;
 
-    img_sub_ =
-      image_transport::create_subscription(
-      this, cam_base_topic_,
-      std::bind(
-        &SingleMarkerTracker::callback_image, this,
-        std::placeholders::_1), image_transport_, image_sub_qos);
+    auto qos = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(image_sub_qos), image_sub_qos);
+
+    img_sub_ = create_subscription<sensor_msgs::msg::Image>(
+      cam_base_topic_, 10, std::bind(
+        &SingleMarkerTracker::callback_image, this, std::placeholders::_1));
+
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  }
+
+  LifecycleNodeInterface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state)
+  {
+    RCLCPP_INFO(get_logger(), "Deactivating");
+
+    on_set_parameter_callback_handle_.reset();
+    cam_info_sub_.reset();
+    img_sub_.reset();
+    tf_listener_.reset();
+    tf_buffer_.reset();
+
+    detection_pub_->on_deactivate();
+    debug_pub_->on_deactivate();
+
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  }
+
+  LifecycleNodeInterface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State &)
+  {
+    RCLCPP_INFO(get_logger(), "Cleaning up");
+
+    tf_broadcaster_.reset();
+    dictionary_.reset();
+    detector_parameters_.reset();
+    detection_pub_.reset();
+    debug_pub_.reset();
+
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+  }
+
+  LifecycleNodeInterface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State & state)
+  {
+    RCLCPP_INFO(get_logger(), "Shutting down");
+
+    on_set_parameter_callback_handle_.reset();
+    cam_info_sub_.reset();
+    tf_listener_.reset();
+    tf_buffer_.reset();
+    tf_broadcaster_.reset();
+    detector_parameters_.reset();
+    detection_pub_.reset();
+    debug_pub_.reset();
+
+    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
 private:
@@ -407,7 +474,7 @@ private:
       cv::Vec3f(-marker_size_ / 2.f, -marker_size_ / 2.f, 0);
   }
 
-  void callback_camera_info(const sensor_msgs::msg::CameraInfo::UniquePtr cam_info)
+  void callback_camera_info(const sensor_msgs::msg::CameraInfo::ConstSharedPtr cam_info)
   {
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
@@ -424,8 +491,10 @@ private:
     }
   }
 
-  void callback_image(const sensor_msgs::msg::Image::ConstSharedPtr & img_msg)
+  void callback_image(const sensor_msgs::msg::Image::ConstSharedPtr img_msg)
   {
+    RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [SUBSCRIBE]:\t" << img_msg.get());
+
     if (!cam_info_retrieved_) {
       return;
     }
@@ -476,7 +545,7 @@ private:
       geometry_msgs::msg::TransformStamped cam_to_output;
       // Retrieve camera -> output_frame transform
       try {
-        cam_to_output = tf_buffer_.lookupTransform(
+        cam_to_output = tf_buffer_->lookupTransform(
           output_frame_, img_msg->header.frame_id,
           img_msg->header.stamp, rclcpp::Duration::from_seconds(1.0));
       } catch (tf2::TransformException & ex) {
@@ -505,7 +574,7 @@ private:
 
     detection_pub_->publish(detection);
 
-    if (debug_pub_.getNumSubscribers() > 0) {
+    if (debug_pub_->get_subscription_count() > 0) {
       auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
       for (size_t i = 0; i < marker_ids.size(); i++) {
@@ -520,7 +589,10 @@ private:
 #endif
       }
 
-      debug_pub_.publish(debug_cv_ptr->toImageMsg());
+      std::unique_ptr<sensor_msgs::msg::Image> debug_img =
+        std::make_unique<sensor_msgs::msg::Image>();
+      debug_cv_ptr->toImageMsg(*debug_img);
+      debug_pub_->publish(std::move(debug_img));
     }
 
     auto callback_end_time = get_clock()->now();

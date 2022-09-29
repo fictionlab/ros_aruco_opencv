@@ -4,6 +4,7 @@ project(aruco_opencv)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(aruco_opencv_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -15,6 +16,7 @@ add_library(${PROJECT_NAME} SHARED
 )
 target_link_libraries(${PROJECT_NAME}
   rclcpp::rclcpp
+  rclcpp_lifecycle::rclcpp_lifecycle
   tf2_ros::tf2_ros
   tf2_geometry_msgs::tf2_geometry_msgs
 )
