@@ -351,20 +351,21 @@ private:
     aruco_opencv_msgs::msg::MarkerDetection detection;
     detection.header.frame_id = img_msg->header.frame_id;
     detection.header.stamp = img_msg->header.stamp;
+    detection.markers.resize(n_markers);
 
     cam_info_mutex_.lock();
-    for (size_t i = 0; i < n_markers; i++) {
-      int id = marker_ids[i];
+    cv::parallel_for_(cv::Range(0, n_markers), [&](const cv::Range& range) {
+      for (size_t i = range.start; i < range.end; i++) {
+        int id = marker_ids[i];
 
-      cv::solvePnP(
-        marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-        rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+        cv::solvePnP(
+          marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+          rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
 
-      aruco_opencv_msgs::msg::MarkerPose mpose;
-      mpose.marker_id = id;
-      mpose.pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
-      detection.markers.push_back(mpose);
-    }
+        detection.markers[i].marker_id = id;
+        detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
+      }
+    });
     cam_info_mutex_.unlock();
 
     if (transform_poses_ && n_markers > 0) {
