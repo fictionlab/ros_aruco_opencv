@@ -38,35 +38,16 @@
 
 #include "aruco_opencv_msgs/msg/marker_detection.hpp"
 
+#include "aruco_opencv/utils.hpp"
+#include "aruco_opencv/parameters.hpp"
+
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
 namespace aruco_opencv
 {
 
-inline geometry_msgs::msg::Pose convert_rvec_tvec(const cv::Vec3d & rvec, const cv::Vec3d & tvec)
-{
-  geometry_msgs::msg::Pose pose_out;
-
-  cv::Mat rot(3, 3, CV_64FC1);
-  cv::Rodrigues(rvec, rot);
-
-  tf2::Matrix3x3 tf_rot(rot.at<double>(0, 0), rot.at<double>(0, 1), rot.at<double>(0, 2),
-    rot.at<double>(1, 0), rot.at<double>(1, 1), rot.at<double>(1, 2),
-    rot.at<double>(2, 0), rot.at<double>(2, 1), rot.at<double>(2, 2));
-  tf2::Quaternion tf_quat;
-  tf_rot.getRotation(tf_quat);
-
-  pose_out.position.x = tvec[0];
-  pose_out.position.y = tvec[1];
-  pose_out.position.z = tvec[2];
-  tf2::convert(tf_quat, pose_out.orientation);
-
-  return pose_out;
-}
-
 class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
 {
-
   // Parameters
   std::string cam_base_topic_;
   std::string output_frame_;
@@ -107,10 +88,11 @@ public:
   : LifecycleNode("single_marker_tracker", options), camera_matrix_(3, 3, CV_64FC1),
     distortion_coeffs_(4, 1, CV_64FC1),
     marker_obj_points_(4, 1, CV_32FC3)
-  {}
+  {
+    declare_parameters();
+  }
 
-  LifecycleNodeInterface::CallbackReturn
-  on_configure(const rclcpp_lifecycle::State &)
+  LifecycleNodeInterface::CallbackReturn on_configure(const rclcpp_lifecycle::State &)
   {
     RCLCPP_INFO(get_logger(), "Configuring");
 
@@ -142,6 +124,8 @@ public:
       tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
       tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     }
+
+    LifecycleNode::on_activate(state);
 
     detection_pub_->on_activate();
     debug_pub_->on_activate();
@@ -222,69 +206,29 @@ public:
   }
 
 private:
-  template<typename T>
-  void get_param(
-    std::string param_name, T & out_value, T default_value, std::string log_info = "",
-    bool dynamic = false)
+  void declare_parameters()
   {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    descriptor.read_only = !dynamic;
+    declare_param(*this, "cam_base_topic", "camera/image_raw");
+    declare_param(*this, "output_frame", "");
+    declare_param(*this, "image_transport", "raw");
+    declare_param(
+      *this, "image_sub_qos.reliability",
+      static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
+    declare_param(
+      *this, "image_sub_qos.durability",
+      static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
+    declare_param(*this, "image_sub_qos.depth", 1);
+    declare_param(*this, "publish_tf", true, true);
+    declare_param(*this, "marker_size", 0.15, true);
 
-    declare_parameter(param_name, rclcpp::ParameterValue(default_value), descriptor);
-    get_parameter(param_name, out_value);
-
-    if (!log_info.empty()) {
-      RCLCPP_INFO_STREAM(get_logger(), log_info << out_value);
-    }
-  }
-
-  void get_param_int_range(
-    std::string param_name, int & out_value, int default_value,
-    int min_value, int max_value, std::string log_info = "")
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    // descriptor.integer_range.push_back()
-    auto range = rcl_interfaces::msg::IntegerRange();
-    range.from_value = min_value;
-    range.to_value = max_value;
-
-    descriptor.integer_range.push_back(range);
-
-    declare_parameter(param_name, default_value, descriptor);
-    get_parameter(param_name, out_value);
-
-    if (!log_info.empty()) {
-      RCLCPP_INFO_STREAM(get_logger(), log_info << out_value);
-    }
-  }
-
-  void get_param_double_range(
-    std::string param_name, double & out_value, double default_value,
-    double min_value, double max_value, std::string log_info = "")
-  {
-    rcl_interfaces::msg::ParameterDescriptor descriptor;
-    // descriptor.integer_range.push_back()
-    auto range = rcl_interfaces::msg::FloatingPointRange();
-    range.from_value = min_value;
-    range.to_value = max_value;
-
-    descriptor.floating_point_range.push_back(range);
-
-    declare_parameter(param_name, default_value, descriptor);
-    get_parameter(param_name, out_value);
-
-    if (!log_info.empty()) {
-      RCLCPP_INFO_STREAM(get_logger(), log_info << out_value);
-    }
+    declare_aruco_parameters(*this);
   }
 
   void retrieve_parameters()
   {
-    get_param<std::string>(
-      "cam_base_topic", cam_base_topic_, "camera/image_raw",
-      "Camera Base Topic: ");
+    get_param(*this, "cam_base_topic", cam_base_topic_, "Camera Base Topic: ");
 
-    get_param<std::string>("output_frame", output_frame_, "");
+    get_parameter("output_frame", output_frame_);
     if (output_frame_.empty()) {
       RCLCPP_INFO(get_logger(), "Marker detections will be published in the camera frame");
       transform_poses_ = false;
@@ -294,93 +238,19 @@ private:
       transform_poses_ = true;
     }
 
-    get_param<std::string>("image_transport", image_transport_, "raw", "Image transport: ");
+    get_param(*this, "image_transport", image_transport_, "Image transport: ");
 
-    get_param(
-      "image_sub_qos.reliability", image_sub_qos_reliability_,
-      static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
-    get_param(
-      "image_sub_qos.durability", image_sub_qos_durability_,
-      static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
-    get_param(
-      "image_sub_qos.depth", image_sub_qos_depth_, 1);
+    get_parameter("image_sub_qos.reliability", image_sub_qos_reliability_);
+    get_parameter("image_sub_qos.durability", image_sub_qos_durability_);
+    get_parameter("image_sub_qos.depth", image_sub_qos_depth_);
 
-    get_param("publish_tf", publish_tf_, true, "", true);
+    get_parameter("publish_tf", publish_tf_);
     RCLCPP_INFO_STREAM(get_logger(), "TF publishing is " << (publish_tf_ ? "enabled" : "disabled"));
 
-    get_param("marker_size", marker_size_, 0.15, "Marker size: ", true);
+    get_param(*this, "marker_size", marker_size_, "Marker size: ");
 
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
-    get_param_int_range(
-      "aruco.adaptiveThreshWinSizeMin",
-      detector_parameters_->adaptiveThreshWinSizeMin, 3, 3, 100, " * adaptiveThreshWinSizeMin: ");
-    get_param_int_range(
-      "aruco.adaptiveThreshWinSizeMax",
-      detector_parameters_->adaptiveThreshWinSizeMax, 23, 3, 100, " * adaptiveThreshWinSizeMax: ");
-    get_param_int_range(
-      "aruco.adaptiveThreshWinSizeStep",
-      detector_parameters_->adaptiveThreshWinSizeMin, 10, 1, 100, " * adaptiveThreshWinSizeStep: ");
-    get_param_double_range(
-      "aruco.adaptiveThreshConstant",
-      detector_parameters_->adaptiveThreshConstant, 7.0, 0.0, 100.0, " * adaptiveThreshConstant: ");
-    get_param_double_range(
-      "aruco.minMarkerPerimeterRate",
-      detector_parameters_->minMarkerPerimeterRate, 0.03, 0.0, 4.0, " * minMarkerPerimeterRate: ");
-    get_param_double_range(
-      "aruco.maxMarkerPerimeterRate",
-      detector_parameters_->maxMarkerPerimeterRate, 4.0, 0.0, 4.0, " * maxMarkerPerimeterRate: ");
-    get_param_double_range(
-      "aruco.polygonalApproxAccuracyRate",
-      detector_parameters_->polygonalApproxAccuracyRate, 0.03, 0.0, 0.3,
-      " * polygonalApproxAccuracyRate: ");
-    get_param_double_range(
-      "aruco.minCornerDistanceRate",
-      detector_parameters_->minCornerDistanceRate, 0.05, 0.0, 0.25, " * minCornerDistanceRate: ");
-    get_param_int_range(
-      "aruco.minDistanceToBorder",
-      detector_parameters_->minDistanceToBorder, 3, 0, 100, " * minDistanceToBorder: ");
-    get_param_double_range(
-      "aruco.minMarkerDistanceRate",
-      detector_parameters_->minMarkerDistanceRate, 0.05, 0.0, 0.25, " * minMarkerDistanceRate: ");
-    get_param_int_range(
-      "aruco.markerBorderBits", detector_parameters_->markerBorderBits, 1, 1, 3,
-      " * markerBorderBits: ");
-    get_param_int_range(
-      "aruco.perspectiveRemovePixelPerCell",
-      detector_parameters_->perspectiveRemovePixelPerCell, 4, 1, 20,
-      " * perspectiveRemovePixelPerCell: ");
-    get_param_double_range(
-      "aruco.perspectiveRemoveIgnoredMarginPerCell",
-      detector_parameters_->perspectiveRemoveIgnoredMarginPerCell, 0.13, 0.0, 0.5,
-      " * perspectiveRemoveIgnoredMarginPerCell: ");
-    get_param_double_range(
-      "aruco.maxErroneousBitsInBorderRate",
-      detector_parameters_->maxErroneousBitsInBorderRate, 0.35, 0.0, 1.0,
-      " * maxErroneousBitsInBorderRate: ");
-    get_param_double_range(
-      "aruco.minOtsuStdDev",
-      detector_parameters_->minOtsuStdDev, 5.0, 0.0, 30.0, " * minOtsuStdDev: ");
-    get_param_double_range(
-      "aruco.errorCorrectionRate",
-      detector_parameters_->errorCorrectionRate, 0.6, 0.0, 1.0, " * errorCorrectionRate: ");
-    get_param_int_range(
-      "aruco.cornerRefinementMethod", detector_parameters_->cornerRefinementMethod, 2, 0, 2);
-    std::map<int, std::string> crmethod = {{0, "NONE"}, {1, "SUBPIX"}, {2, "CONTOUR"}};
-    RCLCPP_INFO_STREAM(
-      get_logger(),
-      " * cornerRefinementMethod: " << detector_parameters_->cornerRefinementMethod << " (" <<
-        crmethod[detector_parameters_->cornerRefinementMethod] << ")");
-    get_param_int_range(
-      "aruco.cornerRefinementWinSize",
-      detector_parameters_->cornerRefinementWinSize, 5, 2, 10, " * cornerRefinementWinSize: ");
-    get_param_int_range(
-      "aruco.cornerRefinementMaxIterations",
-      detector_parameters_->cornerRefinementMaxIterations, 30, 1, 100,
-      " * cornerRefinementMaxIterations: ");
-    get_param_double_range(
-      "aruco.cornerRefinementMinAccuracy",
-      detector_parameters_->cornerRefinementMinAccuracy, 0.1, 0.01, 1.0,
-      " * cornerRefinementMinAccuracy: ");
+    retrieve_aruco_parameters(*this, detector_parameters_, true);
   }
 
   rcl_interfaces::msg::SetParametersResult callback_on_set_parameters(
@@ -422,44 +292,7 @@ private:
       return result;
     }
 
-    get_parameter("aruco.adaptiveThreshWinSizeMin", detector_parameters_->adaptiveThreshWinSizeMin);
-    get_parameter("aruco.adaptiveThreshWinSizeMax", detector_parameters_->adaptiveThreshWinSizeMax);
-    get_parameter(
-      "aruco.adaptiveThreshWinSizeStep",
-      detector_parameters_->adaptiveThreshWinSizeStep);
-    get_parameter("aruco.adaptiveThreshConstant", detector_parameters_->adaptiveThreshConstant);
-    get_parameter("aruco.minMarkerPerimeterRate", detector_parameters_->minMarkerPerimeterRate);
-    get_parameter("aruco.maxMarkerPerimeterRate", detector_parameters_->maxMarkerPerimeterRate);
-    get_parameter(
-      "aruco.polygonalApproxAccuracyRate",
-      detector_parameters_->polygonalApproxAccuracyRate);
-    get_parameter("aruco.minCornerDistanceRate", detector_parameters_->minCornerDistanceRate);
-    get_parameter("aruco.minDistanceToBorder", detector_parameters_->minDistanceToBorder);
-    get_parameter("aruco.minMarkerDistanceRate", detector_parameters_->minMarkerDistanceRate);
-    get_parameter("aruco.markerBorderBits", detector_parameters_->markerBorderBits);
-    get_parameter(
-      "aruco.perspectiveRemovePixelPerCell",
-      detector_parameters_->perspectiveRemovePixelPerCell);
-    get_parameter(
-      "aruco.perspectiveRemoveIgnoredMarginPerCell",
-      detector_parameters_->perspectiveRemoveIgnoredMarginPerCell);
-    get_parameter(
-      "aruco.maxErroneousBitsInBorderRate",
-      detector_parameters_->maxErroneousBitsInBorderRate);
-    get_parameter("aruco.minOtsuStdDev", detector_parameters_->minOtsuStdDev);
-    get_parameter("aruco.errorCorrectionRate", detector_parameters_->errorCorrectionRate);
-#if CV_VERSION_MAJOR >= 4
-    get_parameter("aruco.cornerRefinementMethod", detector_parameters_->cornerRefinementMethod);
-#else
-    get_parameter("aruco.doCornerRefinement", detector_parameters_->doCornerRefinement);
-#endif
-    get_parameter("aruco.cornerRefinementWinSize", detector_parameters_->cornerRefinementWinSize);
-    get_parameter(
-      "aruco.cornerRefinementMaxIterations",
-      detector_parameters_->cornerRefinementMaxIterations);
-    get_parameter(
-      "aruco.cornerRefinementMinAccuracy",
-      detector_parameters_->cornerRefinementMinAccuracy);
+    retrieve_aruco_parameters(*this, detector_parameters_);
 
     return result;
   }
@@ -523,15 +356,9 @@ private:
     for (size_t i = 0; i < n_markers; i++) {
       int id = marker_ids[i];
 
-#if CV_VERSION_MAJOR >= 4
       cv::solvePnP(
         marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
         rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
-#else
-      cv::solvePnP(
-        marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-        rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
-#endif
 
       aruco_opencv_msgs::msg::MarkerPose mpose;
       mpose.marker_id = id;
@@ -578,15 +405,9 @@ private:
       auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
       for (size_t i = 0; i < marker_ids.size(); i++) {
-#if CV_VERSION_MAJOR >= 4
         cv::drawFrameAxes(
           debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
           tvec_final[i], 0.2, 3);
-#else
-        cv::aruco::drawAxis(
-          debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
-          tvec_final[i], 0.2);
-#endif
       }
 
       std::unique_ptr<sensor_msgs::msg::Image> debug_img =

@@ -26,6 +26,10 @@ ament_target_dependencies(${PROJECT_NAME}
   cv_bridge
   image_transport
 )
+target_include_directories(${PROJECT_NAME}
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 rclcpp_components_register_node(${PROJECT_NAME}
   PLUGIN "aruco_opencv::SingleMarkerTracker"
   EXECUTABLE "single_marker_tracker"
