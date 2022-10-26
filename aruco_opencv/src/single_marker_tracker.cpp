@@ -217,7 +217,6 @@ protected:
     declare_param(*this, "cam_base_topic", "camera/image_raw");
     declare_param(*this, "output_frame", "");
     declare_param(*this, "marker_dict", "ARUCO_ORIGINAL");
-    declare_param(*this, "image_transport", "raw");
     declare_param(
       *this, "image_sub_qos.reliability",
       static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
@@ -246,8 +245,6 @@ protected:
     }
 
     get_param(*this, "marker_dict", marker_dict_, "Marker Dictionary name: ");
-
-    get_param(*this, "image_transport", image_transport_, "Image transport: ");
 
     get_parameter("image_sub_qos.reliability", image_sub_qos_reliability_);
     get_parameter("image_sub_qos.durability", image_sub_qos_durability_);
