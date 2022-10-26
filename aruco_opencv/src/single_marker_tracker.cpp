@@ -205,7 +205,7 @@ public:
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
-private:
+protected:
   void declare_parameters()
   {
     declare_param(*this, "cam_base_topic", "camera/image_raw");
@@ -429,7 +429,19 @@ private:
   }
 };
 
+class SingleMarkerTrackerAutostart : public SingleMarkerTracker
+{
+public:
+  SingleMarkerTrackerAutostart(rclcpp::NodeOptions options)
+  : SingleMarkerTracker(options)
+  {
+    configure();
+    activate();
+  }
+};
+
 } // namespace aruco_opencv
 
 #include "rclcpp_components/register_node_macro.hpp"
 RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::SingleMarkerTracker)
+RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::SingleMarkerTrackerAutostart)

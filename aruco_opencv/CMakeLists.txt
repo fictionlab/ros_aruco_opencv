@@ -34,6 +34,10 @@ rclcpp_components_register_node(${PROJECT_NAME}
   PLUGIN "aruco_opencv::SingleMarkerTracker"
   EXECUTABLE "single_marker_tracker"
 )
+rclcpp_components_register_node(${PROJECT_NAME}
+  PLUGIN "aruco_opencv::SingleMarkerTrackerAutostart"
+  EXECUTABLE "single_marker_tracker_autostart"
+)
 
 install(
   TARGETS ${PROJECT_NAME}
