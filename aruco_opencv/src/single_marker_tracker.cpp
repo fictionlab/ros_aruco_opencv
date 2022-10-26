@@ -354,18 +354,19 @@ private:
     detection.markers.resize(n_markers);
 
     cam_info_mutex_.lock();
-    cv::parallel_for_(cv::Range(0, n_markers), [&](const cv::Range& range) {
-      for (size_t i = range.start; i < range.end; i++) {
-        int id = marker_ids[i];
+    cv::parallel_for_(
+      cv::Range(0, n_markers), [&](const cv::Range & range) {
+        for (size_t i = range.start; i < range.end; i++) {
+          int id = marker_ids[i];
 
-        cv::solvePnP(
-          marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-          rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+          cv::solvePnP(
+            marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+            rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
 
-        detection.markers[i].marker_id = id;
-        detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
-      }
-    });
+          detection.markers[i].marker_id = id;
+          detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
+        }
+      });
     cam_info_mutex_.unlock();
 
     if (transform_poses_ && n_markers > 0) {
