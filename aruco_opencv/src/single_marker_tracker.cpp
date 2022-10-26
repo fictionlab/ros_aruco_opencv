@@ -29,6 +29,7 @@
 
 #include "cv_bridge/cv_bridge.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
@@ -240,7 +241,8 @@ protected:
       transform_poses_ = false;
     } else {
       RCLCPP_INFO(
-        get_logger(), "Marker detections will be transformed to \'%s\' frame", output_frame_);
+        get_logger(), "Marker detections will be transformed to \'%s\' frame",
+        output_frame_.c_str());
       transform_poses_ = true;
     }
 
@@ -271,7 +273,7 @@ protected:
         if (param.as_double() <= 0.0) {
           result.successful = false;
           result.reason = param.get_name() + " must be positive";
-          RCLCPP_ERROR(get_logger(), result.reason);
+          RCLCPP_ERROR_STREAM(get_logger(), result.reason);
           return result;
         }
       }
@@ -442,8 +444,9 @@ public:
   : SingleMarkerTracker(options)
   {
     auto new_state = configure();
-    if (new_state.label() == "configured")
+    if (new_state.label() == "configured") {
       activate();
+    }
   }
 };
 
