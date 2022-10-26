@@ -51,6 +51,7 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
   // Parameters
   std::string cam_base_topic_;
   std::string output_frame_;
+  std::string marker_dict_;
   bool transform_poses_;
   bool publish_tf_;
   double marker_size_;
@@ -98,10 +99,14 @@ public:
 
     detector_parameters_ = cv::aruco::DetectorParameters::create();
 
-    // TODO: Add parameter for dictionary
-    dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
-
     retrieve_parameters();
+
+    if (ARUCO_DICT_MAP.find(marker_dict_) == ARUCO_DICT_MAP.end()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Unsupported dictionary name: " << marker_dict_);
+      return LifecycleNodeInterface::CallbackReturn::FAILURE;
+    }
+
+    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
 
     update_marker_obj_points();
 
@@ -113,7 +118,7 @@ public:
       "marker_detections", 5);
     debug_pub_ = create_publisher<sensor_msgs::msg::Image>("~/debug", 5);
 
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
   LifecycleNodeInterface::CallbackReturn on_activate(const rclcpp_lifecycle::State & state)
@@ -157,7 +162,7 @@ public:
       cam_base_topic_, 10, std::bind(
         &SingleMarkerTracker::callback_image, this, std::placeholders::_1));
 
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
   LifecycleNodeInterface::CallbackReturn on_deactivate(const rclcpp_lifecycle::State & state)
@@ -173,7 +178,7 @@ public:
     detection_pub_->on_deactivate();
     debug_pub_->on_deactivate();
 
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
   LifecycleNodeInterface::CallbackReturn on_cleanup(const rclcpp_lifecycle::State &)
@@ -186,7 +191,7 @@ public:
     detection_pub_.reset();
     debug_pub_.reset();
 
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
   LifecycleNodeInterface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State & state)
@@ -203,7 +208,7 @@ public:
     detection_pub_.reset();
     debug_pub_.reset();
 
-    return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
+    return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
 protected:
@@ -211,6 +216,7 @@ protected:
   {
     declare_param(*this, "cam_base_topic", "camera/image_raw");
     declare_param(*this, "output_frame", "");
+    declare_param(*this, "marker_dict", "ARUCO_ORIGINAL");
     declare_param(*this, "image_transport", "raw");
     declare_param(
       *this, "image_sub_qos.reliability",
@@ -238,6 +244,8 @@ protected:
         get_logger(), "Marker detections will be transformed to \'%s\' frame", output_frame_);
       transform_poses_ = true;
     }
+
+    get_param(*this, "marker_dict", marker_dict_, "Marker Dictionary name: ");
 
     get_param(*this, "image_transport", image_transport_, "Image transport: ");
 
@@ -436,8 +444,9 @@ public:
   SingleMarkerTrackerAutostart(rclcpp::NodeOptions options)
   : SingleMarkerTracker(options)
   {
-    configure();
-    activate();
+    auto new_state = configure();
+    if (new_state.label() == "configured")
+      activate();
   }
 };
 

@@ -3,6 +3,8 @@
     cam_base_topic: camera/image_raw
     output_frame: ''
 
+    marker_dict: ARUCO_ORIGINAL
+
     image_transport: raw
     image_sub_qos:
       reliability: 2 # 0 - system default, 1 - reliable, 2 - best effort

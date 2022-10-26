@@ -20,35 +20,19 @@
 
 #pragma once
 
+#include <unordered_map>
+
+#include <opencv2/aruco.hpp>
 #include <opencv2/calib3d.hpp>
 
 #include "geometry_msgs/msg/pose.hpp"
 #include "cv_bridge/cv_bridge.h"
-#include "tf2/convert.h"
 
 namespace aruco_opencv
 {
 
-inline geometry_msgs::msg::Pose convert_rvec_tvec(const cv::Vec3d & rvec, const cv::Vec3d & tvec)
-{
-  geometry_msgs::msg::Pose pose_out;
+geometry_msgs::msg::Pose convert_rvec_tvec(const cv::Vec3d & rvec, const cv::Vec3d & tvec);
 
-  cv::Mat rot(3, 3, CV_64FC1);
-  cv::Rodrigues(rvec, rot);
-
-  tf2::Matrix3x3 tf_rot(rot.at<double>(0, 0), rot.at<double>(0, 1), rot.at<double>(0, 2),
-    rot.at<double>(1, 0), rot.at<double>(1, 1), rot.at<double>(1, 2),
-    rot.at<double>(2, 0), rot.at<double>(2, 1), rot.at<double>(2, 2));
-  tf2::Quaternion tf_quat;
-  tf_rot.getRotation(tf_quat);
-
-  pose_out.position.x = tvec[0];
-  pose_out.position.y = tvec[1];
-  pose_out.position.z = tvec[2];
-  tf2::convert(tf_quat, pose_out.orientation);
-
-  return pose_out;
-}
-
+extern const std::unordered_map<std::string, cv::aruco::PREDEFINED_DICTIONARY_NAME> ARUCO_DICT_MAP;
 
 } // namespace aruco_opencv

@@ -13,6 +13,7 @@ find_package(image_transport REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/single_marker_tracker.cpp
+  src/utils.cpp
 )
 target_link_libraries(${PROJECT_NAME}
   rclcpp::rclcpp
