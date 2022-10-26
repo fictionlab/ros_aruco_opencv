@@ -1,3 +1,23 @@
+// Copyright 2022 Kell Ideas sp. z o.o.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 #include <mutex>
 
 #include <opencv2/aruco.hpp>
@@ -17,34 +37,16 @@
 
 #include <aruco_opencv/ArucoDetectorConfig.h>
 #include <aruco_opencv_msgs/MarkerDetection.h>
+#include <aruco_opencv/utils.h>
 
 namespace aruco_opencv {
-
-inline geometry_msgs::Pose convert_rvec_tvec(const cv::Vec3d &rvec, const cv::Vec3d &tvec) {
-  geometry_msgs::Pose pose_out;
-
-  cv::Mat rot(3, 3, CV_64FC1);
-  cv::Rodrigues(rvec, rot);
-
-  tf2::Matrix3x3 tf_rot(rot.at<double>(0, 0), rot.at<double>(0, 1), rot.at<double>(0, 2),
-                        rot.at<double>(1, 0), rot.at<double>(1, 1), rot.at<double>(1, 2),
-                        rot.at<double>(2, 0), rot.at<double>(2, 1), rot.at<double>(2, 2));
-  tf2::Quaternion tf_quat;
-  tf_rot.getRotation(tf_quat);
-
-  tf2::Vector3 tf_orig(tvec[0], tvec[1], tvec[2]);
-
-  tf2::toMsg(tf_orig, pose_out.position);
-  pose_out.orientation = tf2::toMsg(tf_quat);
-
-  return pose_out;
-}
 
 class SingleMarkerTracker : public nodelet::Nodelet {
 
   // Parameters
   std::string cam_base_topic_;
   std::string output_frame_;
+  std::string marker_dict_;
   bool transform_poses_;
   bool publish_tf_;
   double marker_size_;
@@ -85,8 +87,12 @@ private:
     auto &nh = getNodeHandle();
     auto &pnh = getPrivateNodeHandle();
 
+    detector_parameters_ = cv::aruco::DetectorParameters::create();
+
     retrieve_parameters(pnh);
-    transform_poses_ = !output_frame_.empty();
+
+    dyn_srv_ = new dynamic_reconfigure::Server<aruco_opencv::ArucoDetectorConfig>(pnh);
+    dyn_srv_->setCallback(boost::bind(&SingleMarkerTracker::reconfigure_callback, this, _1, _2));
 
     if (transform_poses_)
       tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
@@ -94,12 +100,12 @@ private:
     if (publish_tf_)
       tf_broadcaster_ = new tf2_ros::TransformBroadcaster();
 
-    detector_parameters_ = cv::aruco::DetectorParameters::create();
-    // TODO: Add parameter for dictionary
-    dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_ARUCO_ORIGINAL);
+    if (ARUCO_DICT_MAP.find(marker_dict_) == ARUCO_DICT_MAP.end()) {
+      ROS_ERROR_STREAM("Unsupported dictionary name: " << marker_dict_); 
+      return;
+    }
 
-    dyn_srv_ = new dynamic_reconfigure::Server<aruco_opencv::ArucoDetectorConfig>(pnh);
-    dyn_srv_->setCallback(boost::bind(&SingleMarkerTracker::reconfigure_callback, this, _1, _2));
+    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
 
     // set coordinate system in the middle of the marker, with Z pointing out
     marker_obj_points_.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_size_ / 2.f, marker_size_ / 2.f, 0);
@@ -126,10 +132,28 @@ private:
 
   void retrieve_parameters(ros::NodeHandle &pnh) {
     pnh.param<std::string>("cam_base_topic", cam_base_topic_, "camera/image_raw");
+    ROS_INFO_STREAM("Camera Base Topic: " << cam_base_topic_);
+
     pnh.param<std::string>("output_frame", output_frame_, "");
+    if (output_frame_.empty()) {
+      ROS_INFO("Marker detections will be published in the camera frame");
+      transform_poses_ = false;
+    } else {
+      ROS_INFO("Marker detections will be transformed to \'%s\' frame", output_frame_.c_str());
+      transform_poses_ = true;
+    }
+
+    pnh.param<std::string>("marker_dict", marker_dict_, "ARUCO_ORIGINAL");
+    ROS_INFO_STREAM("Marker Dictionary name: " << marker_dict_);
+
     pnh.param<bool>("publish_tf", publish_tf_, true);
+    ROS_INFO_STREAM("TF publishing is " << (publish_tf_ ? "enabled" : "disabled"));
+
     pnh.param<double>("marker_size", marker_size_, 0.15);
+    ROS_INFO_STREAM("Marker size: " << marker_size_);
+
     pnh.param<int>("image_queue_size", image_queue_size_, 1);
+    ROS_INFO_STREAM("Image Queue size: " << image_queue_size_);
   }
 
   void reconfigure_callback(aruco_opencv::ArucoDetectorConfig &config, uint32_t level) {
@@ -181,6 +205,8 @@ private:
   }
 
   void callback_image(const sensor_msgs::ImageConstPtr &img_msg) {
+    ROS_DEBUG_STREAM("Image message address [SUBSCRIBE]:\t" << img_msg.get());
+
     if (!cam_info_retrieved_)
       return;
 
@@ -201,24 +227,25 @@ private:
     aruco_opencv_msgs::MarkerDetection detection;
     detection.header.frame_id = img_msg->header.frame_id;
     detection.header.stamp = img_msg->header.stamp;
+    detection.markers.resize(n_markers);
 
     cam_info_mutex_.lock();
-    for (size_t i = 0; i < n_markers; i++) {
-      int id = marker_ids[i];
+    cv::parallel_for_(cv::Range(0, n_markers), [&](const cv::Range &range) {
+      for (int i = range.start; i < range.end; i++) {
+        int id = marker_ids[i];
 
 #if CV_VERSION_MAJOR >= 4
-      cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                   rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+        cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+                     rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
 #else
-      cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                   rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
+        cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+                     rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
 #endif
 
-      aruco_opencv_msgs::MarkerPose mpose;
-      mpose.marker_id = id;
-      mpose.pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
-      detection.markers.push_back(mpose);
-    }
+        detection.markers[i].marker_id = id;
+        detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
+      }
+    });
     cam_info_mutex_.unlock();
 
     if (transform_poses_ && n_markers > 0) {

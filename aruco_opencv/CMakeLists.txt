@@ -18,10 +18,14 @@ generate_dynamic_reconfigure_options(
 
 catkin_package()
 
-include_directories(${catkin_INCLUDE_DIRS})
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+)
 
 add_library(${PROJECT_NAME}
   src/single_marker_tracker.cpp
+  src/utils.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 add_dependencies(${PROJECT_NAME}
