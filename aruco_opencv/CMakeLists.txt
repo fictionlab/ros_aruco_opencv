@@ -10,6 +10,7 @@ find_package(cv_bridge REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(image_transport REQUIRED)
+find_package(OpenCV ${OpenCV_VERSION} REQUIRED COMPONENTS aruco)
 
 add_library(${PROJECT_NAME} SHARED
   src/single_marker_tracker.cpp
@@ -18,14 +19,15 @@ add_library(${PROJECT_NAME} SHARED
 target_link_libraries(${PROJECT_NAME}
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
+  rclcpp_components::component
   tf2_ros::tf2_ros
   tf2_geometry_msgs::tf2_geometry_msgs
+  image_transport::image_transport
+  opencv_aruco
 )
 ament_target_dependencies(${PROJECT_NAME}
   aruco_opencv_msgs
-  rclcpp_components
   cv_bridge
-  image_transport
 )
 target_include_directories(${PROJECT_NAME}
   PRIVATE
