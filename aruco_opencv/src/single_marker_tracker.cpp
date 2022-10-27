@@ -444,7 +444,7 @@ public:
   : SingleMarkerTracker(options)
   {
     auto new_state = configure();
-    if (new_state.label() == "configured") {
+    if (new_state.label() == "inactive") {
       activate();
     }
   }
