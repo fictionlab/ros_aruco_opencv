@@ -160,7 +160,7 @@ public:
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(image_sub_qos), image_sub_qos);
 
     img_sub_ = create_subscription<sensor_msgs::msg::Image>(
-      cam_base_topic_, 10, std::bind(
+      cam_base_topic_, qos, std::bind(
         &SingleMarkerTracker::callback_image, this, std::placeholders::_1));
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
