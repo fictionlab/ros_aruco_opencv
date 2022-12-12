@@ -2,6 +2,11 @@
 Changelog for package aruco_opencv_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Initial port for ROS2 Foxy
+* Contributors: Błażej Sowa
+
 0.2.0 (2022-09-07)
 ------------------
 * Move message definitions to aruco_opencv_msgs package (`#2 <https://github.com/fictionlab/aruco_opencv/issues/2>`_)
