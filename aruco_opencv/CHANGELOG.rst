@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+4.0.0 (2022-12-12)
+------------------
 * Better camera calibration handling (`#3 <https://github.com/fictionlab/ros_aruco_opencv/issues/3>`_)
   * Support different distortion models
   * Support rectified images
