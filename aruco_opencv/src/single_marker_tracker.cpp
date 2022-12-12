@@ -87,8 +87,8 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
 
 public:
   SingleMarkerTracker(rclcpp::NodeOptions options)
-  : LifecycleNode("single_marker_tracker", options), camera_matrix_(3, 3, CV_64FC1),
-    distortion_coeffs_(4, 1, CV_64FC1),
+  : LifecycleNode("single_marker_tracker", options),
+    camera_matrix_(3, 3, CV_64FC1),
     marker_obj_points_(4, 1, CV_32FC3)
   {
     declare_parameters();
@@ -322,9 +322,7 @@ protected:
     for (int i = 0; i < 9; ++i) {
       camera_matrix_.at<double>(i / 3, i % 3) = cam_info->k[i];
     }
-    for (int i = 0; i < 4; ++i) {
-      distortion_coeffs_.at<double>(i, 0) = cam_info->d[i];
-    }
+    distortion_coeffs_ = cv::Mat(cam_info->d, true);
 
     if (!cam_info_retrieved_) {
       RCLCPP_INFO(get_logger(), "First camera info retrieved.");
@@ -361,21 +359,22 @@ protected:
     detection.header.stamp = img_msg->header.stamp;
     detection.markers.resize(n_markers);
 
-    cam_info_mutex_.lock();
-    cv::parallel_for_(
-      cv::Range(0, n_markers), [&](const cv::Range & range) {
-        for (size_t i = range.start; i < range.end; i++) {
-          int id = marker_ids[i];
+    {
+      std::lock_guard<std::mutex> guard(cam_info_mutex_);
+      cv::parallel_for_(
+        cv::Range(0, n_markers), [&](const cv::Range & range) {
+          for (size_t i = range.start; i < range.end; i++) {
+            int id = marker_ids[i];
 
-          cv::solvePnP(
-            marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-            rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+            cv::solvePnP(
+              marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+              rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
 
-          detection.markers[i].marker_id = id;
-          detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
-        }
-      });
-    cam_info_mutex_.unlock();
+            detection.markers[i].marker_id = id;
+            detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
+          }
+        });
+    }
 
     if (transform_poses_ && n_markers > 0) {
       detection.header.frame_id = output_frame_;
@@ -414,12 +413,14 @@ protected:
     if (debug_pub_->get_subscription_count() > 0) {
       auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
-      for (size_t i = 0; i < marker_ids.size(); i++) {
-        cv::drawFrameAxes(
-          debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
-          tvec_final[i], 0.2, 3);
+      {
+        std::lock_guard<std::mutex> guard(cam_info_mutex_);
+        for (size_t i = 0; i < marker_ids.size(); i++) {
+          cv::drawFrameAxes(
+            debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
+            tvec_final[i], 0.2, 3);
+        }
       }
-
       std::unique_ptr<sensor_msgs::msg::Image> debug_img =
         std::make_unique<sensor_msgs::msg::Image>();
       debug_cv_ptr->toImageMsg(*debug_img);
