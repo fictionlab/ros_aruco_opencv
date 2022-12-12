@@ -239,7 +239,8 @@ protected:
     get_param(*this, "cam_base_topic", cam_base_topic_, "Camera Base Topic: ");
 
     get_parameter("image_is_rectified", image_is_rectified_);
-    RCLCPP_INFO_STREAM(get_logger(), "Assume images are rectified: " << (image_is_rectified_ ? "YES" : "NO"));
+    RCLCPP_INFO_STREAM(
+      get_logger(), "Assume images are rectified: " << (image_is_rectified_ ? "YES" : "NO"));
 
     get_parameter("output_frame", output_frame_);
     if (output_frame_.empty()) {
@@ -326,11 +327,13 @@ protected:
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
     if (image_is_rectified_) {
-      for (int i = 0; i < 12; ++i)
+      for (int i = 0; i < 12; ++i) {
         camera_matrix_.at<double>(i / 4, i % 4) = cam_info->p[i];
+      }
     } else {
-      for (int i = 0; i < 9; ++i)
+      for (int i = 0; i < 9; ++i) {
         camera_matrix_.at<double>(i / 3, i % 3) = cam_info->k[i];
+      }
       distortion_coeffs_ = cv::Mat(cam_info->d, true);
     }
 
