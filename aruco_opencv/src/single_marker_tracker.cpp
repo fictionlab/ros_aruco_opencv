@@ -51,6 +51,7 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
 {
   // Parameters
   std::string cam_base_topic_;
+  bool image_is_rectified_;
   std::string output_frame_;
   std::string marker_dict_;
   bool transform_poses_;
@@ -89,6 +90,7 @@ public:
   SingleMarkerTracker(rclcpp::NodeOptions options)
   : LifecycleNode("single_marker_tracker", options),
     camera_matrix_(3, 3, CV_64FC1),
+    distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0)),
     marker_obj_points_(4, 1, CV_32FC3)
   {
     declare_parameters();
@@ -216,6 +218,7 @@ protected:
   void declare_parameters()
   {
     declare_param(*this, "cam_base_topic", "camera/image_raw");
+    declare_param(*this, "image_is_rectified", false, false);
     declare_param(*this, "output_frame", "");
     declare_param(*this, "marker_dict", "ARUCO_ORIGINAL");
     declare_param(
@@ -234,6 +237,9 @@ protected:
   void retrieve_parameters()
   {
     get_param(*this, "cam_base_topic", cam_base_topic_, "Camera Base Topic: ");
+
+    get_parameter("image_is_rectified", image_is_rectified_);
+    RCLCPP_INFO_STREAM(get_logger(), "Assume images are rectified: " << (image_is_rectified_ ? "YES" : "NO"));
 
     get_parameter("output_frame", output_frame_);
     if (output_frame_.empty()) {
@@ -319,10 +325,14 @@ protected:
   {
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
-    for (int i = 0; i < 9; ++i) {
-      camera_matrix_.at<double>(i / 3, i % 3) = cam_info->k[i];
+    if (image_is_rectified_) {
+      for (int i = 0; i < 12; ++i)
+        camera_matrix_.at<double>(i / 4, i % 4) = cam_info->p[i];
+    } else {
+      for (int i = 0; i < 9; ++i)
+        camera_matrix_.at<double>(i / 3, i % 3) = cam_info->k[i];
+      distortion_coeffs_ = cv::Mat(cam_info->d, true);
     }
-    distortion_coeffs_ = cv::Mat(cam_info->d, true);
 
     if (!cam_info_retrieved_) {
       RCLCPP_INFO(get_logger(), "First camera info retrieved.");
