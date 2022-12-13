@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+4.0.1 (2022-12-13)
+------------------
 * Fix package dependencies
 * Contributors: Błażej Sowa
 
