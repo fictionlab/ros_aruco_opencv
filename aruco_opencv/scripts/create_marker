@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import numpy as np
+import argparse
+import cv2
+import img2pdf
+
+ARUCO_DICTS = {
+    "4X4_50": cv2.aruco.DICT_4X4_50,
+    "4X4_100": cv2.aruco.DICT_4X4_100,
+    "4X4_250": cv2.aruco.DICT_4X4_250,
+    "4X4_1000": cv2.aruco.DICT_4X4_1000,
+    "5X5_50": cv2.aruco.DICT_5X5_50,
+    "5X5_100": cv2.aruco.DICT_5X5_100,
+    "5X5_250": cv2.aruco.DICT_5X5_250,
+    "5X5_1000": cv2.aruco.DICT_5X5_1000,
+    "6X6_50": cv2.aruco.DICT_6X6_50,
+    "6X6_100": cv2.aruco.DICT_6X6_100,
+    "6X6_250": cv2.aruco.DICT_6X6_250,
+    "6X6_1000": cv2.aruco.DICT_6X6_1000,
+    "7X7_50": cv2.aruco.DICT_7X7_50,
+    "7X7_100": cv2.aruco.DICT_7X7_100,
+    "7X7_250": cv2.aruco.DICT_7X7_250,
+    "7X7_1000": cv2.aruco.DICT_7X7_1000,
+    "ARUCO_ORIGINAL": cv2.aruco.DICT_ARUCO_ORIGINAL,
+    "APRILTAG_16h5": cv2.aruco.DICT_APRILTAG_16h5,
+    "APRILTAG_25h9": cv2.aruco.DICT_APRILTAG_25h9,
+    "APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
+    "APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11,
+}
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "-o",
+        dest="output",
+        type=str,
+        default="markers.pdf",
+        help="Path to output PDF file containing ArUco markers",
+    )
+    parser.add_argument(
+        "-d",
+        dest="dict",
+        type=str,
+        default="ARUCO_ORIGINAL",
+        choices=list(ARUCO_DICTS.keys()),
+        help="Dictionary of ArUco markers to use",
+    )
+    parser.add_argument("id", type=int, nargs="+", help="ID of the marker to generate")
+    args = parser.parse_args()
+
+    aruco_dict = cv2.aruco.Dictionary_get(ARUCO_DICTS[args.dict])
+
+    images = []
+    for marker_id in args.id:
+        marker = np.zeros((7, 7), dtype="uint8")
+        cv2.aruco.drawMarker(aruco_dict, marker_id, 7, marker, 1)
+        img = cv2.imencode(".png", marker)[1].tobytes()
+        images.append(img)
+
+    my_layout_fun = img2pdf.get_fixed_dpi_layout_fun((1.0, 1.0))
+    with open(args.output, "wb") as f:
+        f.write(img2pdf.convert(images, layout_fun=my_layout_fun))
+
+if __name__ == "__main__":
+    main()
