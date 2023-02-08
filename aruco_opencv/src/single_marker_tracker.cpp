@@ -37,7 +37,7 @@
 
 #include <aruco_opencv/ArucoDetectorConfig.h>
 #include <aruco_opencv_msgs/MarkerDetection.h>
-#include <aruco_opencv/utils.h>
+#include <aruco_opencv/utils.hpp>
 
 namespace aruco_opencv {
 

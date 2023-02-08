@@ -21,7 +21,7 @@
 #include "tf2/convert.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-#include "aruco_opencv/utils.h"
+#include "aruco_opencv/utils.hpp"
 
 namespace aruco_opencv
 {
