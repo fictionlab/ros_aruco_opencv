@@ -38,7 +38,9 @@ install(
 )
 
 install(
-  PROGRAMS scripts/create_marker
+  PROGRAMS 
+    scripts/create_board
+    scripts/create_marker
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
