@@ -70,7 +70,11 @@ def parse_args() -> argparse.Namespace:
         help="Number of white margin pixels",
     )
     parser.add_argument(
-        "-s", "--size", type=float, default=0.10, help="Marker size in meters"
+        "-s",
+        "--size",
+        type=float,
+        default=0.10,
+        help="Output marker size (with margins) in meters",
     )
     parser.add_argument("id", type=int, nargs="+", help="ID of the marker to generate")
     return parser.parse_args()
@@ -83,14 +87,17 @@ def main():
     marker_side_pixels = (
         aruco_dict.markerSize + 2 * args.border_bits
     ) * args.pixels_per_bit
-    dpi = marker_side_pixels / (args.size / 0.0254)
+    output_side_pixels = marker_side_pixels + 2 * args.margin_pixels
+    dpi = output_side_pixels / (args.size / 0.0254)
+    size_without_margin = (marker_side_pixels / dpi) * 0.0254
 
     print(f"ArUco dictionary: {args.dict}")
     print(f"Inner marker bits: {aruco_dict.markerSize}")
     print(f"Border bits: {args.border_bits}")
     print(f"Pixels per bit: {args.pixels_per_bit}")
     print(f"Margin pixels: {args.margin_pixels}")
-    print(f"Marker size: {args.size} m (side pixels: {marker_side_pixels})")
+    print(f"Marker size with margin: {args.size:.3f} m (side pixels: {output_side_pixels})")
+    print(f"Marker size without margin: {size_without_margin:.3f} m (side pixels: {marker_side_pixels})")
     print(f"Output DPI: {dpi:.3f}")
 
     images = []
