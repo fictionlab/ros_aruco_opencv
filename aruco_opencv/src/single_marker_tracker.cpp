@@ -41,6 +41,10 @@
 
 namespace aruco_opencv {
 
+struct MarkerEstimate {
+  cv::Vec3d rvec, tvec;
+};
+
 class SingleMarkerTracker : public nodelet::Nodelet {
 
   // Parameters
@@ -69,6 +73,7 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   cv::Mat marker_obj_points_;
   cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
+  std::unordered_map<int, MarkerEstimate> marker_estimates_;
 
   // Thread safety
   std::mutex cam_info_mutex_;
@@ -241,20 +246,37 @@ private:
     cv::parallel_for_(cv::Range(0, n_markers), [&](const cv::Range &range) {
       for (int i = range.start; i < range.end; i++) {
         int id = marker_ids[i];
+        bool use_extrinsic_guess = false;
 
-#if CV_VERSION_MAJOR >= 4
+        if (marker_estimates_.find(id) != marker_estimates_.end()) {
+          auto & estimate = marker_estimates_.at(id);
+          rvec_final[i] = estimate.rvec;
+          tvec_final[i] = estimate.tvec;
+          use_extrinsic_guess = true;
+        }
+
         cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                     rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
-#else
-        cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                     rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
-#endif
+                     rvec_final[i], tvec_final[i], use_extrinsic_guess, cv::SOLVEPNP_ITERATIVE);
+
+// #if CV_VERSION_MAJOR >= 4
+//         cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+//                      rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
+// #else
+//         cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+//                      rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
+// #endif
 
         detection.markers[i].marker_id = id;
         detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
       }
     });
     cam_info_mutex_.unlock();
+
+    for (int i = 0; i < n_markers; i++) {
+      int id = marker_ids[i];
+      MarkerEstimate estimate{rvec_final[i], tvec_final[i]};
+      marker_estimates_[id] = estimate;
+    }
 
     if (transform_poses_ && n_markers > 0) {
       detection.header.frame_id = output_frame_;
