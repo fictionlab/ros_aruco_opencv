@@ -97,7 +97,7 @@ def main():
     print(f"Pixels per bit: {args.pixels_per_bit}")
     print(f"Margin pixels: {args.margin_pixels}")
     print(
-        f"Marker side size: {marker_size:.3f} m - {marker_side_pixels} pixels"
+        f"Marker side size: {marker_size:.4f} m - {marker_side_pixels} pixels"
     )
     print(f"Output image side size: {args.size:.3f} m - {output_side_pixels} pixels")
     print(f"Output DPI: {dpi:.3f}")

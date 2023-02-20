@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
         dest="output",
         type=str,
         default="markers.pdf",
-        help="Path to output PDF file containing ArUco markers",
+        help="Path to output PDF file containing ArUco marker boards",
     )
     parser.add_argument(
         "-d",
@@ -100,7 +100,7 @@ def parse_args() -> argparse.Namespace:
         default=2,
         help="Number of markers in the Y direction",
     )
-    parser.add_argument("id", type=int, nargs="+", help="ID of the marker to generate")
+    parser.add_argument("id", type=int, nargs="+", help="ID of the first marker in the board")
     return parser.parse_args()
 
 
@@ -134,8 +134,8 @@ def main():
     print(f"Marker border bits: {args.border_bits}")
     print(f"Pixels per bit: {args.pixels_per_bit}")
     print(f"Margin pixels: {args.margin_pixels}")
-    print(f"Marker side size: {marker_size:.3f} m - {marker_side_pixels} pixels")
-    print(f"Separation size: {separation_size:.3f} m - {args.separation_pixels} pixels")
+    print(f"Marker side size: {marker_size:.4f} m - {marker_side_pixels} pixels")
+    print(f"Separation size: {separation_size:.4f} m - {args.separation_pixels} pixels")
     print(f"Board Size: {args.markers_x} x {args.markers_y} markers")
     print(
         f"Output image size: {args.size:.3f} x {output_y_size:.3f} m - {output_x_pixels} x {output_y_pixels} pixels"
