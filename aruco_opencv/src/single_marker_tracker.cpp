@@ -36,8 +36,8 @@
 #include <tf2_ros/transform_listener.h>
 
 #include <aruco_opencv/ArucoDetectorConfig.h>
-#include <aruco_opencv_msgs/MarkerDetection.h>
 #include <aruco_opencv/utils.hpp>
+#include <aruco_opencv_msgs/MarkerDetection.h>
 
 namespace aruco_opencv {
 
@@ -55,6 +55,7 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   // ROS
   ros::Publisher detection_pub_;
   ros::Subscriber cam_info_sub_;
+  ros::Time last_msg_stamp;
   bool cam_info_retrieved_ = false;
   image_transport::ImageTransport *it_;
   image_transport::ImageTransport *pit_;
@@ -101,7 +102,7 @@ private:
       tf_broadcaster_ = new tf2_ros::TransformBroadcaster();
 
     if (ARUCO_DICT_MAP.find(marker_dict_) == ARUCO_DICT_MAP.end()) {
-      ROS_ERROR_STREAM("Unsupported dictionary name: " << marker_dict_); 
+      ROS_ERROR_STREAM("Unsupported dictionary name: " << marker_dict_);
       return;
     }
 
@@ -209,6 +210,13 @@ private:
 
     if (!cam_info_retrieved_)
       return;
+
+    if (img_msg->header.stamp == last_msg_stamp) {
+      ROS_DEBUG("The new image has the same timestamp as the previous one (duplicate frame?). "
+                "Ignoring...");
+      return;
+    }
+    last_msg_stamp = img_msg->header.stamp;
 
     auto callback_start_time = ros::Time::now();
 
