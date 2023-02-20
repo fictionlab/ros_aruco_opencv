@@ -44,6 +44,10 @@
   <test_depend>ament_cmake_uncrustify</test_depend>
   <test_depend>ament_cmake_xmllint</test_depend>
 
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-img2pdf</exec_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
