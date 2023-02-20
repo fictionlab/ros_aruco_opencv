@@ -34,6 +34,10 @@
   <exec_depend>nodelet</exec_depend>
   <exec_depend>dynamic_reconfigure</exec_depend>
 
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-img2pdf</exec_depend>
+
   <export>
     <nodelet plugin="${prefix}/nodelet_plugins.xml" />
   </export>
