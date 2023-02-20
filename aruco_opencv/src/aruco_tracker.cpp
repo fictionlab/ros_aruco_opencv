@@ -37,7 +37,7 @@
 
 #include <aruco_opencv/ArucoDetectorConfig.h>
 #include <aruco_opencv/utils.hpp>
-#include <aruco_opencv_msgs/MarkerDetection.h>
+#include <aruco_opencv_msgs/ArucoDetection.h>
 
 namespace aruco_opencv {
 
@@ -118,7 +118,7 @@ private:
     it_ = new image_transport::ImageTransport(nh);
     pit_ = new image_transport::ImageTransport(pnh);
 
-    detection_pub_ = nh.advertise<aruco_opencv_msgs::MarkerDetection>("marker_detections", 5);
+    detection_pub_ = nh.advertise<aruco_opencv_msgs::ArucoDetection>("aruco_detections", 5);
     debug_pub_ = pit_->advertise("debug", 1);
 
     NODELET_INFO("Waiting for first camera info...");
@@ -232,7 +232,7 @@ private:
     int n_markers = marker_ids.size();
     std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
 
-    aruco_opencv_msgs::MarkerDetection detection;
+    aruco_opencv_msgs::ArucoDetection detection;
     detection.header.frame_id = img_msg->header.frame_id;
     detection.header.stamp = img_msg->header.stamp;
     detection.markers.resize(n_markers);
