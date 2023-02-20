@@ -24,7 +24,7 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-  src/single_marker_tracker.cpp
+  src/aruco_tracker.cpp
   src/utils.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

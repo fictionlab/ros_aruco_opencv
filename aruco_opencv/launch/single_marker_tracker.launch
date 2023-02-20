@@ -1,7 +1,0 @@
-<launch>
-  <node name="aruco_tracker" pkg="nodelet" type="nodelet"
-    args="standalone aruco_opencv/SingleMarkerTracker" output="screen">
-    <rosparam command="load"
-      file="$(find aruco_opencv)/config/single_marker_tracker.yaml" />
-  </node>
-</launch> 

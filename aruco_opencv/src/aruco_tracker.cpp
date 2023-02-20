@@ -41,7 +41,7 @@
 
 namespace aruco_opencv {
 
-class SingleMarkerTracker : public nodelet::Nodelet {
+class ArucoTracker : public nodelet::Nodelet {
 
   // Parameters
   std::string cam_base_topic_;
@@ -79,7 +79,7 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   tf2_ros::TransformBroadcaster *tf_broadcaster_;
 
 public:
-  SingleMarkerTracker()
+  ArucoTracker()
       : camera_matrix_(3, 3, CV_64FC1), distortion_coeffs_(4, 1, CV_64FC1),
         marker_obj_points_(4, 1, CV_32FC3) {}
 
@@ -93,7 +93,7 @@ private:
     retrieve_parameters(pnh);
 
     dyn_srv_ = new dynamic_reconfigure::Server<aruco_opencv::ArucoDetectorConfig>(pnh);
-    dyn_srv_->setCallback(boost::bind(&SingleMarkerTracker::reconfigure_callback, this, _1, _2));
+    dyn_srv_->setCallback(boost::bind(&ArucoTracker::reconfigure_callback, this, _1, _2));
 
     if (transform_poses_)
       tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
@@ -125,10 +125,10 @@ private:
 
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
     cam_info_sub_ =
-        nh.subscribe(cam_info_topic, 1, &SingleMarkerTracker::callback_camera_info, this);
+        nh.subscribe(cam_info_topic, 1, &ArucoTracker::callback_camera_info, this);
 
     img_sub_ = it_->subscribe(cam_base_topic_, image_queue_size_,
-                              &SingleMarkerTracker::callback_image, this);
+                              &ArucoTracker::callback_image, this);
   }
 
   void retrieve_parameters(ros::NodeHandle &pnh) {
@@ -317,4 +317,4 @@ private:
 
 } // namespace aruco_opencv
 
-PLUGINLIB_EXPORT_CLASS(aruco_opencv::SingleMarkerTracker, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(aruco_opencv::ArucoTracker, nodelet::Nodelet)
