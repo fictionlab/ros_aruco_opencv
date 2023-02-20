@@ -100,7 +100,9 @@ def parse_args() -> argparse.Namespace:
         default=2,
         help="Number of markers in the Y direction",
     )
-    parser.add_argument("id", type=int, nargs="+", help="ID of the first marker in the board")
+    parser.add_argument(
+        "id", type=int, nargs="+", help="ID of the first marker in the board"
+    )
     return parser.parse_args()
 
 
@@ -155,14 +157,15 @@ def main():
             marker_id,
         )
 
-        marker = np.zeros((output_x_pixels, output_y_pixels), dtype="uint8")
-        cv2.aruco.drawPlanarBoard(
-            board,
+        marker = np.zeros((output_y_pixels, output_x_pixels), dtype="uint8")
+
+        board.draw(
             (output_x_pixels, output_y_pixels),
             marker,
             args.margin_pixels,
             args.border_bits,
         )
+
         img = cv2.imencode(".png", marker)[1].tobytes()
         images.append(img)
 
