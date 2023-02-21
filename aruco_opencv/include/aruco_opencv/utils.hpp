@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <string>
 #include <unordered_map>
 
 #include <opencv2/aruco.hpp>
@@ -35,4 +36,4 @@ geometry_msgs::msg::Pose convert_rvec_tvec(const cv::Vec3d & rvec, const cv::Vec
 
 extern const std::unordered_map<std::string, cv::aruco::PREDEFINED_DICTIONARY_NAME> ARUCO_DICT_MAP;
 
-} // namespace aruco_opencv
+}  // namespace aruco_opencv
