@@ -25,25 +25,3 @@ jobs:
         uses: actions/checkout@v3
       - name: Source tests
         uses: "ros-industrial/industrial_ci@master"
-<<<<<<< HEAD:.github/workflows/ci-foxy.yml
-
-  ament_lint:
-    name: ament_${{ matrix.linter }}
-    runs-on: ubuntu-20.04
-    container:
-      image: ros:foxy
-    strategy:
-      fail-fast: false
-      matrix:
-        linter: [copyright, lint_cmake, uncrustify, xmllint]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ros-tooling/action-ros-lint@v0.1
-        with:
-          distribution: foxy
-          linter: ${{ matrix.linter }}
-          package-name: |
-            aruco_opencv
-            aruco_opencv_msgs
-=======
->>>>>>> f5fdf40 (Add ament_lint tests to cmakelists instead of github workflows (#7)):.github/workflows/ci-rolling.yml
