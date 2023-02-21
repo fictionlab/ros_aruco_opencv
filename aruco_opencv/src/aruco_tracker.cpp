@@ -180,8 +180,9 @@ private:
     }
 
     for (const YAML::Node &desc : descriptions) {
+      std::string name;
       try {
-        const std::string name = desc["name"].as<std::string>();
+        name = desc["name"].as<std::string>();
         const bool frame_at_center = desc["frame_at_center"].as<bool>();
         const int markers_x = desc["markers_x"].as<int>();
         const int markers_y = desc["markers_y"].as<int>();
@@ -204,9 +205,10 @@ private:
 
         boards_.push_back(std::make_pair(name, board));
       } catch (const YAML::Exception &e) {
-        ROS_ERROR_STREAM("Failed to load board description: " << e.what());
+        ROS_ERROR_STREAM("Failed to load board '" << name << "': " << e.what());
         continue;
       }
+      ROS_INFO_STREAM("Successfully loaded configuration for board '" << name << "'");
     }
   }
 
@@ -309,6 +311,25 @@ private:
     });
     cam_info_mutex_.unlock();
 
+    for (const auto &board_desc : boards_) {
+      std::string name = board_desc.first;
+      auto &board = board_desc.second;
+
+      cv::Vec3d rvec, tvec;
+      int valid = cv::aruco::estimatePoseBoard(marker_corners, marker_ids, board, camera_matrix_,
+                                               distortion_coeffs_, rvec, tvec);
+
+      if (valid > 0) {
+        aruco_opencv_msgs::BoardPose bpose;
+        bpose.board_name = name;
+        bpose.pose = convert_rvec_tvec(rvec, tvec);
+        detection.boards.push_back(bpose);
+        rvec_final.push_back(rvec);
+        tvec_final.push_back(tvec);
+        n_markers++;
+      }
+    }
+
     if (transform_poses_ && n_markers > 0) {
       detection.header.frame_id = output_frame_;
       geometry_msgs::TransformStamped cam_to_output;
@@ -322,6 +343,8 @@ private:
       }
       for (auto &marker_pose : detection.markers)
         tf2::doTransform(marker_pose.pose, marker_pose.pose, cam_to_output);
+      for (auto &board_pose : detection.boards)
+        tf2::doTransform(board_pose.pose, board_pose.pose, cam_to_output);
     }
 
     if (publish_tf_ && n_markers > 0) {
@@ -336,6 +359,16 @@ private:
         transform.transform = tf2::toMsg(tf_transform);
         transforms.push_back(transform);
       }
+      for (auto &board_pose : detection.boards) {
+        geometry_msgs::TransformStamped transform;
+        transform.header.stamp = detection.header.stamp;
+        transform.header.frame_id = detection.header.frame_id;
+        transform.child_frame_id = std::string("board_") + board_pose.board_name;
+        tf2::Transform tf_transform;
+        tf2::fromMsg(board_pose.pose, tf_transform);
+        transform.transform = tf2::toMsg(tf_transform);
+        transforms.push_back(transform);
+      }
       tf_broadcaster_->sendTransform(transforms);
     }
 
@@ -344,7 +377,7 @@ private:
     if (debug_pub_.getNumSubscribers() > 0) {
       auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
-      for (size_t i = 0; i < marker_ids.size(); i++) {
+      for (size_t i = 0; i < n_markers; i++) {
 #if CV_VERSION_MAJOR >= 4
         cv::drawFrameAxes(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
                           tvec_final[i], 0.2, 3);
