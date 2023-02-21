@@ -22,6 +22,7 @@
 
 #include <opencv2/aruco.hpp>
 #include <opencv2/calib3d.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
@@ -51,6 +52,7 @@ class ArucoTracker : public nodelet::Nodelet {
   bool publish_tf_;
   double marker_size_;
   int image_queue_size_;
+  std::string board_descriptions_path_;
 
   // ROS
   ros::Publisher detection_pub_;
@@ -69,6 +71,7 @@ class ArucoTracker : public nodelet::Nodelet {
   cv::Mat marker_obj_points_;
   cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
+  std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
 
   // Thread safety
   std::mutex cam_info_mutex_;
@@ -92,6 +95,16 @@ private:
 
     retrieve_parameters(pnh);
 
+    if (ARUCO_DICT_MAP.find(marker_dict_) == ARUCO_DICT_MAP.end()) {
+      ROS_ERROR_STREAM("Unsupported dictionary name: " << marker_dict_);
+      return;
+    }
+
+    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
+
+    if (!board_descriptions_path_.empty())
+      load_boards();
+
     dyn_srv_ = new dynamic_reconfigure::Server<aruco_opencv::ArucoDetectorConfig>(pnh);
     dyn_srv_->setCallback(boost::bind(&ArucoTracker::reconfigure_callback, this, _1, _2));
 
@@ -100,13 +113,6 @@ private:
 
     if (publish_tf_)
       tf_broadcaster_ = new tf2_ros::TransformBroadcaster();
-
-    if (ARUCO_DICT_MAP.find(marker_dict_) == ARUCO_DICT_MAP.end()) {
-      ROS_ERROR_STREAM("Unsupported dictionary name: " << marker_dict_);
-      return;
-    }
-
-    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
 
     // set coordinate system in the middle of the marker, with Z pointing out
     marker_obj_points_.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_size_ / 2.f, marker_size_ / 2.f, 0);
@@ -124,11 +130,10 @@ private:
     NODELET_INFO("Waiting for first camera info...");
 
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
-    cam_info_sub_ =
-        nh.subscribe(cam_info_topic, 1, &ArucoTracker::callback_camera_info, this);
+    cam_info_sub_ = nh.subscribe(cam_info_topic, 1, &ArucoTracker::callback_camera_info, this);
 
-    img_sub_ = it_->subscribe(cam_base_topic_, image_queue_size_,
-                              &ArucoTracker::callback_image, this);
+    img_sub_ =
+        it_->subscribe(cam_base_topic_, image_queue_size_, &ArucoTracker::callback_image, this);
   }
 
   void retrieve_parameters(ros::NodeHandle &pnh) {
@@ -155,6 +160,54 @@ private:
 
     pnh.param<int>("image_queue_size", image_queue_size_, 1);
     ROS_INFO_STREAM("Image Queue size: " << image_queue_size_);
+
+    pnh.param<std::string>("board_descriptions_path", board_descriptions_path_, "");
+  }
+
+  void load_boards() {
+    ROS_INFO_STREAM("Trying to load board descriptions from " << board_descriptions_path_);
+
+    YAML::Node descriptions;
+    try {
+      descriptions = YAML::LoadFile(board_descriptions_path_);
+    } catch (const YAML::Exception &e) {
+      ROS_ERROR_STREAM("Failed to load board descriptions: " << e.what());
+      return;
+    }
+
+    if (!descriptions.IsSequence()) {
+      ROS_ERROR_STREAM("Failed to load board descriptions: root node is not a sequence");
+    }
+
+    for (const YAML::Node &desc : descriptions) {
+      try {
+        const std::string name = desc["name"].as<std::string>();
+        const bool frame_at_center = desc["frame_at_center"].as<bool>();
+        const int markers_x = desc["markers_x"].as<int>();
+        const int markers_y = desc["markers_y"].as<int>();
+        const double marker_size = desc["marker_size"].as<double>();
+        const double separation = desc["separation"].as<double>();
+
+        auto board = cv::aruco::GridBoard::create(markers_x, markers_y, marker_size, separation,
+                                                  dictionary_, desc["first_id"].as<int>());
+
+        if (frame_at_center) {
+          double offset_x = (markers_x * (marker_size + separation) - separation) / 2.0;
+          double offset_y = (markers_y * (marker_size + separation) - separation) / 2.0;
+          for (auto &obj : board->objPoints) {
+            for (auto &point : obj) {
+              point.x -= offset_x;
+              point.y -= offset_y;
+            }
+          }
+        }
+
+        boards_.push_back(std::make_pair(name, board));
+      } catch (const YAML::Exception &e) {
+        ROS_ERROR_STREAM("Failed to load board description: " << e.what());
+        continue;
+      }
+    }
   }
 
   void reconfigure_callback(aruco_opencv::ArucoDetectorConfig &config, uint32_t level) {

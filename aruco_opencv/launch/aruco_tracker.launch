@@ -3,5 +3,7 @@
     args="standalone aruco_opencv/ArucoTracker" output="screen">
     <rosparam command="load"
       file="$(find aruco_opencv)/config/aruco_tracker.yaml" />
+    <param name="board_descriptions_path"
+      value="$(find aruco_opencv)/config/board_descriptions.yaml" />
   </node>
 </launch> 
