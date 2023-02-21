@@ -20,6 +20,9 @@
 
 #pragma once
 
+#include <map>
+#include <string>
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -220,4 +223,4 @@ void retrieve_aruco_parameters(
   }
 }
 
-} // namespace aruco_opencv
+}  // namespace aruco_opencv
