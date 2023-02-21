@@ -149,7 +149,7 @@ private:
       transform_poses_ = true;
     }
 
-    pnh.param<std::string>("marker_dict", marker_dict_, "ARUCO_ORIGINAL");
+    pnh.param<std::string>("marker_dict", marker_dict_, "4X4_50");
     ROS_INFO_STREAM("Marker Dictionary name: " << marker_dict_);
 
     pnh.param<bool>("publish_tf", publish_tf_, true);
