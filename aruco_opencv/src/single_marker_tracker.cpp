@@ -87,7 +87,7 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
 public:
-  SingleMarkerTracker(rclcpp::NodeOptions options)
+  explicit SingleMarkerTracker(rclcpp::NodeOptions options)
   : LifecycleNode("single_marker_tracker", options),
     camera_matrix_(3, 3, CV_64FC1),
     distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0)),
@@ -275,7 +275,7 @@ protected:
     result.successful = true;
 
     // Validate parameters
-    for (auto & param: parameters) {
+    for (auto & param : parameters) {
       if (param.get_name() == "marker_size") {
         if (param.as_double() <= 0.0) {
           result.successful = false;
@@ -359,7 +359,7 @@ protected:
     std::vector<int> marker_ids;
     std::vector<std::vector<cv::Point2f>> marker_corners;
 
-    // TODO: mutex
+    // TODO(bjsowa): mutex
     cv::aruco::detectMarkers(
       cv_ptr->image, dictionary_, marker_corners, marker_ids,
       detector_parameters_);
@@ -454,7 +454,7 @@ protected:
 class SingleMarkerTrackerAutostart : public SingleMarkerTracker
 {
 public:
-  SingleMarkerTrackerAutostart(rclcpp::NodeOptions options)
+  explicit SingleMarkerTrackerAutostart(rclcpp::NodeOptions options)
   : SingleMarkerTracker(options)
   {
     auto new_state = configure();
@@ -464,7 +464,7 @@ public:
   }
 };
 
-} // namespace aruco_opencv
+}  // namespace aruco_opencv
 
 #include "rclcpp_components/register_node_macro.hpp"
 RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::SingleMarkerTracker)
