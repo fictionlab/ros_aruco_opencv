@@ -1,10 +1,10 @@
 cam_base_topic: camera/image_raw
 output_frame: ''
 
-marker_dict: ARUCO_ORIGINAL
+marker_dict: 4X4_50
 
 publish_tf: true
-marker_size: 0.100
+marker_size: 0.0742
 image_queue_size: 1
 
 # Dynamically reconfigurable Detector parameters

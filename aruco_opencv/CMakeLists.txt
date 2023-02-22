@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
   tf2_ros
 )
+find_package(yaml-cpp REQUIRED)
 
 generate_dynamic_reconfigure_options(
   cfg/ArucoDetector.cfg
@@ -21,13 +22,17 @@ catkin_package()
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${YAML_CPP_INCLUDE_DIRS}
 )
 
 add_library(${PROJECT_NAME}
-  src/single_marker_tracker.cpp
+  src/aruco_tracker.cpp
   src/utils.cpp
 )
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${YAML_CPP_LIBRARIES}
+)
 add_dependencies(${PROJECT_NAME}
   ${PROJECT_NAME}_gencfg
 )

@@ -22,6 +22,7 @@
 
 #include <opencv2/aruco.hpp>
 #include <opencv2/calib3d.hpp>
+#include <yaml-cpp/yaml.h>
 
 #include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
@@ -37,11 +38,11 @@
 
 #include <aruco_opencv/ArucoDetectorConfig.h>
 #include <aruco_opencv/utils.hpp>
-#include <aruco_opencv_msgs/MarkerDetection.h>
+#include <aruco_opencv_msgs/ArucoDetection.h>
 
 namespace aruco_opencv {
 
-class SingleMarkerTracker : public nodelet::Nodelet {
+class ArucoTracker : public nodelet::Nodelet {
 
   // Parameters
   std::string cam_base_topic_;
@@ -51,6 +52,7 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   bool publish_tf_;
   double marker_size_;
   int image_queue_size_;
+  std::string board_descriptions_path_;
 
   // ROS
   ros::Publisher detection_pub_;
@@ -69,6 +71,7 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   cv::Mat marker_obj_points_;
   cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
+  std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
 
   // Thread safety
   std::mutex cam_info_mutex_;
@@ -79,7 +82,7 @@ class SingleMarkerTracker : public nodelet::Nodelet {
   tf2_ros::TransformBroadcaster *tf_broadcaster_;
 
 public:
-  SingleMarkerTracker()
+  ArucoTracker()
       : camera_matrix_(3, 3, CV_64FC1), distortion_coeffs_(4, 1, CV_64FC1),
         marker_obj_points_(4, 1, CV_32FC3) {}
 
@@ -92,21 +95,24 @@ private:
 
     retrieve_parameters(pnh);
 
-    dyn_srv_ = new dynamic_reconfigure::Server<aruco_opencv::ArucoDetectorConfig>(pnh);
-    dyn_srv_->setCallback(boost::bind(&SingleMarkerTracker::reconfigure_callback, this, _1, _2));
-
-    if (transform_poses_)
-      tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
-
-    if (publish_tf_)
-      tf_broadcaster_ = new tf2_ros::TransformBroadcaster();
-
     if (ARUCO_DICT_MAP.find(marker_dict_) == ARUCO_DICT_MAP.end()) {
       ROS_ERROR_STREAM("Unsupported dictionary name: " << marker_dict_);
       return;
     }
 
     dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
+
+    if (!board_descriptions_path_.empty())
+      load_boards();
+
+    dyn_srv_ = new dynamic_reconfigure::Server<aruco_opencv::ArucoDetectorConfig>(pnh);
+    dyn_srv_->setCallback(boost::bind(&ArucoTracker::reconfigure_callback, this, _1, _2));
+
+    if (transform_poses_)
+      tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
+
+    if (publish_tf_)
+      tf_broadcaster_ = new tf2_ros::TransformBroadcaster();
 
     // set coordinate system in the middle of the marker, with Z pointing out
     marker_obj_points_.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_size_ / 2.f, marker_size_ / 2.f, 0);
@@ -118,17 +124,16 @@ private:
     it_ = new image_transport::ImageTransport(nh);
     pit_ = new image_transport::ImageTransport(pnh);
 
-    detection_pub_ = nh.advertise<aruco_opencv_msgs::MarkerDetection>("marker_detections", 5);
+    detection_pub_ = nh.advertise<aruco_opencv_msgs::ArucoDetection>("aruco_detections", 5);
     debug_pub_ = pit_->advertise("debug", 1);
 
     NODELET_INFO("Waiting for first camera info...");
 
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
-    cam_info_sub_ =
-        nh.subscribe(cam_info_topic, 1, &SingleMarkerTracker::callback_camera_info, this);
+    cam_info_sub_ = nh.subscribe(cam_info_topic, 1, &ArucoTracker::callback_camera_info, this);
 
-    img_sub_ = it_->subscribe(cam_base_topic_, image_queue_size_,
-                              &SingleMarkerTracker::callback_image, this);
+    img_sub_ =
+        it_->subscribe(cam_base_topic_, image_queue_size_, &ArucoTracker::callback_image, this);
   }
 
   void retrieve_parameters(ros::NodeHandle &pnh) {
@@ -144,7 +149,7 @@ private:
       transform_poses_ = true;
     }
 
-    pnh.param<std::string>("marker_dict", marker_dict_, "ARUCO_ORIGINAL");
+    pnh.param<std::string>("marker_dict", marker_dict_, "4X4_50");
     ROS_INFO_STREAM("Marker Dictionary name: " << marker_dict_);
 
     pnh.param<bool>("publish_tf", publish_tf_, true);
@@ -155,6 +160,56 @@ private:
 
     pnh.param<int>("image_queue_size", image_queue_size_, 1);
     ROS_INFO_STREAM("Image Queue size: " << image_queue_size_);
+
+    pnh.param<std::string>("board_descriptions_path", board_descriptions_path_, "");
+  }
+
+  void load_boards() {
+    ROS_INFO_STREAM("Trying to load board descriptions from " << board_descriptions_path_);
+
+    YAML::Node descriptions;
+    try {
+      descriptions = YAML::LoadFile(board_descriptions_path_);
+    } catch (const YAML::Exception &e) {
+      ROS_ERROR_STREAM("Failed to load board descriptions: " << e.what());
+      return;
+    }
+
+    if (!descriptions.IsSequence()) {
+      ROS_ERROR_STREAM("Failed to load board descriptions: root node is not a sequence");
+    }
+
+    for (const YAML::Node &desc : descriptions) {
+      std::string name;
+      try {
+        name = desc["name"].as<std::string>();
+        const bool frame_at_center = desc["frame_at_center"].as<bool>();
+        const int markers_x = desc["markers_x"].as<int>();
+        const int markers_y = desc["markers_y"].as<int>();
+        const double marker_size = desc["marker_size"].as<double>();
+        const double separation = desc["separation"].as<double>();
+
+        auto board = cv::aruco::GridBoard::create(markers_x, markers_y, marker_size, separation,
+                                                  dictionary_, desc["first_id"].as<int>());
+
+        if (frame_at_center) {
+          double offset_x = (markers_x * (marker_size + separation) - separation) / 2.0;
+          double offset_y = (markers_y * (marker_size + separation) - separation) / 2.0;
+          for (auto &obj : board->objPoints) {
+            for (auto &point : obj) {
+              point.x -= offset_x;
+              point.y -= offset_y;
+            }
+          }
+        }
+
+        boards_.push_back(std::make_pair(name, board));
+      } catch (const YAML::Exception &e) {
+        ROS_ERROR_STREAM("Failed to load board '" << name << "': " << e.what());
+        continue;
+      }
+      ROS_INFO_STREAM("Successfully loaded configuration for board '" << name << "'");
+    }
   }
 
   void reconfigure_callback(aruco_opencv::ArucoDetectorConfig &config, uint32_t level) {
@@ -232,7 +287,7 @@ private:
     int n_markers = marker_ids.size();
     std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
 
-    aruco_opencv_msgs::MarkerDetection detection;
+    aruco_opencv_msgs::ArucoDetection detection;
     detection.header.frame_id = img_msg->header.frame_id;
     detection.header.stamp = img_msg->header.stamp;
     detection.markers.resize(n_markers);
@@ -254,6 +309,25 @@ private:
         detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
       }
     });
+
+    for (const auto &board_desc : boards_) {
+      std::string name = board_desc.first;
+      auto &board = board_desc.second;
+
+      cv::Vec3d rvec, tvec;
+      int valid = cv::aruco::estimatePoseBoard(marker_corners, marker_ids, board, camera_matrix_,
+                                               distortion_coeffs_, rvec, tvec);
+
+      if (valid > 0) {
+        aruco_opencv_msgs::BoardPose bpose;
+        bpose.board_name = name;
+        bpose.pose = convert_rvec_tvec(rvec, tvec);
+        detection.boards.push_back(bpose);
+        rvec_final.push_back(rvec);
+        tvec_final.push_back(tvec);
+        n_markers++;
+      }
+    }
     cam_info_mutex_.unlock();
 
     if (transform_poses_ && n_markers > 0) {
@@ -269,6 +343,8 @@ private:
       }
       for (auto &marker_pose : detection.markers)
         tf2::doTransform(marker_pose.pose, marker_pose.pose, cam_to_output);
+      for (auto &board_pose : detection.boards)
+        tf2::doTransform(board_pose.pose, board_pose.pose, cam_to_output);
     }
 
     if (publish_tf_ && n_markers > 0) {
@@ -283,6 +359,16 @@ private:
         transform.transform = tf2::toMsg(tf_transform);
         transforms.push_back(transform);
       }
+      for (auto &board_pose : detection.boards) {
+        geometry_msgs::TransformStamped transform;
+        transform.header.stamp = detection.header.stamp;
+        transform.header.frame_id = detection.header.frame_id;
+        transform.child_frame_id = std::string("board_") + board_pose.board_name;
+        tf2::Transform tf_transform;
+        tf2::fromMsg(board_pose.pose, tf_transform);
+        transform.transform = tf2::toMsg(tf_transform);
+        transforms.push_back(transform);
+      }
       tf_broadcaster_->sendTransform(transforms);
     }
 
@@ -291,7 +377,7 @@ private:
     if (debug_pub_.getNumSubscribers() > 0) {
       auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
-      for (size_t i = 0; i < marker_ids.size(); i++) {
+      for (size_t i = 0; i < n_markers; i++) {
 #if CV_VERSION_MAJOR >= 4
         cv::drawFrameAxes(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
                           tvec_final[i], 0.2, 3);
@@ -317,4 +403,4 @@ private:
 
 } // namespace aruco_opencv
 
-PLUGINLIB_EXPORT_CLASS(aruco_opencv::SingleMarkerTracker, nodelet::Nodelet)
+PLUGINLIB_EXPORT_CLASS(aruco_opencv::ArucoTracker, nodelet::Nodelet)
