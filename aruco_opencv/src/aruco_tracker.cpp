@@ -28,14 +28,9 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
-<<<<<<< HEAD:aruco_opencv/src/single_marker_tracker.cpp
 
 #include "cv_bridge/cv_bridge.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-=======
-#include "cv_bridge/cv_bridge.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
->>>>>>> 7ed77e7 (Add board detection (ROS2) (#16)):aruco_opencv/src/aruco_tracker.cpp
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/transform_broadcaster.h"

@@ -10,11 +10,8 @@ find_package(cv_bridge REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(image_transport REQUIRED)
-<<<<<<< HEAD
-=======
 find_package(OpenCV ${OpenCV_VERSION} REQUIRED COMPONENTS aruco)
 find_package(yaml-cpp REQUIRED)
->>>>>>> 7ed77e7 (Add board detection (ROS2) (#16))
 
 add_library(${PROJECT_NAME} SHARED
   src/aruco_tracker.cpp
@@ -25,12 +22,8 @@ target_link_libraries(${PROJECT_NAME}
   rclcpp_lifecycle::rclcpp_lifecycle
   tf2_ros::tf2_ros
   tf2_geometry_msgs::tf2_geometry_msgs
-<<<<<<< HEAD
-=======
-  image_transport::image_transport
   opencv_aruco
   ${YAML_CPP_LIBRARIES}
->>>>>>> 7ed77e7 (Add board detection (ROS2) (#16))
 )
 ament_target_dependencies(${PROJECT_NAME}
   aruco_opencv_msgs
