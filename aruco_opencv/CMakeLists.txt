@@ -11,6 +11,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(OpenCV ${OpenCV_VERSION} REQUIRED COMPONENTS aruco)
+find_package(yaml-cpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/aruco_tracker.cpp
@@ -24,6 +25,7 @@ target_link_libraries(${PROJECT_NAME}
   tf2_geometry_msgs::tf2_geometry_msgs
   image_transport::image_transport
   opencv_aruco
+  ${YAML_CPP_LIBRARIES}
 )
 ament_target_dependencies(${PROJECT_NAME}
   aruco_opencv_msgs
@@ -32,6 +34,7 @@ ament_target_dependencies(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${YAML_CPP_INCLUDE_DIRS}
 )
 rclcpp_components_register_node(${PROJECT_NAME}
   PLUGIN "aruco_opencv::ArucoTracker"
