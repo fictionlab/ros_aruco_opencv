@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.1 (2023-02-22)
+------------------
 * Fix build for Debian Buster
 * Contributors: Błażej Sowa
 
