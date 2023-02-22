@@ -2,6 +2,23 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add Board detection (`#6 <https://github.com/fictionlab/aruco_opencv/issues/6>`_)
+  * Rename SingleMarkerTracker to ArucoTracker
+  * Add BoardPose msg, change MarkerDetection to ArucoDetection
+  * Load board descriptions from yaml file
+  * Add more boards to example configuration
+  * Change default marker dictionary
+  * Add board pose estimation
+  * Lock camera info for board estimation
+* Ignore duplicate image frames
+* Add scripts for generating markers and boards
+* Fix included headers file extensions
+* Port changes from foxy branch
+* Simplify filling the camera matrix from camera info
+* Contributors: Błażej Sowa
+
 0.2.0 (2022-09-07)
 ------------------
 * Move message definitions to aruco_opencv_msgs package (`#2 <https://github.com/fictionlab/aruco_opencv/issues/2>`_)
