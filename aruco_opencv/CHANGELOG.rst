@@ -2,6 +2,21 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add python dependencies (`#19 <https://github.com/fictionlab/ros_aruco_opencv/issues/19>`_)
+* Add board detection (ROS2) (`#16 <https://github.com/fictionlab/ros_aruco_opencv/issues/16>`_)
+  * Rename SingleMarkerTracker to ArucoTracker
+  * Add BoardPose msg, change MarkerDetection to ArucoDetection
+  * Change default marker dictionary
+  * Add board descriptions
+  * Add board pose estimation
+  * Fix cpplint errors
+* Add scripts for generating markers and boards (`#13 <https://github.com/fictionlab/ros_aruco_opencv/issues/13>`_)
+* Ignore duplicate image frames (`#10 <https://github.com/fictionlab/ros_aruco_opencv/issues/10>`_)
+* Add ament_lint tests to cmakelists instead of github workflows (`#7 <https://github.com/fictionlab/ros_aruco_opencv/issues/7>`_)
+* Contributors: Błażej Sowa
+
 4.0.1 (2022-12-13)
 ------------------
 
