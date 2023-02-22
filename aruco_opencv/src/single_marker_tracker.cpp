@@ -69,6 +69,7 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
   rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr img_sub_;
+  rclcpp::Time last_msg_stamp_;
   bool cam_info_retrieved_ = false;
 
   // Aruco
@@ -350,6 +351,14 @@ protected:
     if (!cam_info_retrieved_) {
       return;
     }
+
+    if (img_msg->header.stamp == last_msg_stamp_) {
+      RCLCPP_DEBUG(
+        get_logger(),
+        "The new image has the same timestamp as the previous one (duplicate frame?). Ignoring...");
+      return;
+    }
+    last_msg_stamp_ = img_msg->header.stamp;
 
     auto callback_start_time = get_clock()->now();
 
