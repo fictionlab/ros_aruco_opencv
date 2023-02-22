@@ -24,11 +24,18 @@
 #include <opencv2/aruco.hpp>
 #include <opencv2/calib3d.hpp>
 
+#include "yaml-cpp/yaml.h"
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
+<<<<<<< HEAD:aruco_opencv/src/single_marker_tracker.cpp
 
 #include "cv_bridge/cv_bridge.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+=======
+#include "cv_bridge/cv_bridge.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+>>>>>>> 7ed77e7 (Add board detection (ROS2) (#16)):aruco_opencv/src/aruco_tracker.cpp
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/transform_broadcaster.h"
@@ -37,7 +44,8 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/camera_common.hpp"
 
-#include "aruco_opencv_msgs/msg/marker_detection.hpp"
+#include "aruco_opencv_msgs/msg/aruco_detection.hpp"
+#include "aruco_opencv_msgs/msg/board_pose.hpp"
 
 #include "aruco_opencv/utils.hpp"
 #include "aruco_opencv/parameters.hpp"
@@ -47,7 +55,7 @@ using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 namespace aruco_opencv
 {
 
-class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
+class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
 {
   // Parameters
   std::string cam_base_topic_;
@@ -61,10 +69,11 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
   int image_sub_qos_durability_;
   int image_sub_qos_depth_;
   std::string image_transport_;
+  std::string board_descriptions_path_;
 
   // ROS
   OnSetParametersCallbackHandle::SharedPtr on_set_parameter_callback_handle_;
-  rclcpp_lifecycle::LifecyclePublisher<aruco_opencv_msgs::msg::MarkerDetection>::SharedPtr
+  rclcpp_lifecycle::LifecyclePublisher<aruco_opencv_msgs::msg::ArucoDetection>::SharedPtr
     detection_pub_;
   rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
@@ -78,6 +87,7 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
   cv::Mat marker_obj_points_;
   cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
+  std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
 
   // Thread safety
   std::mutex cam_info_mutex_;
@@ -88,8 +98,8 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
 public:
-  explicit SingleMarkerTracker(rclcpp::NodeOptions options)
-  : LifecycleNode("single_marker_tracker", options),
+  explicit ArucoTracker(rclcpp::NodeOptions options)
+  : LifecycleNode("aruco_tracker", options),
     camera_matrix_(3, 3, CV_64FC1),
     distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0)),
     marker_obj_points_(4, 1, CV_32FC3)
@@ -112,14 +122,18 @@ public:
 
     dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
 
+    if (!board_descriptions_path_.empty()) {
+      load_boards();
+    }
+
     update_marker_obj_points();
 
     if (publish_tf_) {
       tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
     }
 
-    detection_pub_ = create_publisher<aruco_opencv_msgs::msg::MarkerDetection>(
-      "marker_detections", 5);
+    detection_pub_ = create_publisher<aruco_opencv_msgs::msg::ArucoDetection>(
+      "aruco_detections", 5);
     debug_pub_ = create_publisher<sensor_msgs::msg::Image>("~/debug", 5);
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
@@ -142,7 +156,7 @@ public:
     on_set_parameter_callback_handle_ =
       add_on_set_parameters_callback(
       std::bind(
-        &SingleMarkerTracker::callback_on_set_parameters,
+        &ArucoTracker::callback_on_set_parameters,
         this, std::placeholders::_1));
 
     RCLCPP_INFO(get_logger(), "Waiting for first camera info...");
@@ -152,7 +166,7 @@ public:
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
     cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
       cam_info_topic, 1,
-      std::bind(&SingleMarkerTracker::callback_camera_info, this, std::placeholders::_1));
+      std::bind(&ArucoTracker::callback_camera_info, this, std::placeholders::_1));
 
     rmw_qos_profile_t image_sub_qos = rmw_qos_profile_default;
     image_sub_qos.reliability =
@@ -164,7 +178,7 @@ public:
 
     img_sub_ = create_subscription<sensor_msgs::msg::Image>(
       cam_base_topic_, qos, std::bind(
-        &SingleMarkerTracker::callback_image, this, std::placeholders::_1));
+        &ArucoTracker::callback_image, this, std::placeholders::_1));
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -221,7 +235,7 @@ protected:
     declare_param(*this, "cam_base_topic", "camera/image_raw");
     declare_param(*this, "image_is_rectified", false, false);
     declare_param(*this, "output_frame", "");
-    declare_param(*this, "marker_dict", "ARUCO_ORIGINAL");
+    declare_param(*this, "marker_dict", "4X4_50");
     declare_param(
       *this, "image_sub_qos.reliability",
       static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
@@ -231,6 +245,7 @@ protected:
     declare_param(*this, "image_sub_qos.depth", 1);
     declare_param(*this, "publish_tf", true, true);
     declare_param(*this, "marker_size", 0.15, true);
+    declare_param(*this, "board_descriptions_path", "");
 
     declare_aruco_parameters(*this);
   }
@@ -264,6 +279,8 @@ protected:
     RCLCPP_INFO_STREAM(get_logger(), "TF publishing is " << (publish_tf_ ? "enabled" : "disabled"));
 
     get_param(*this, "marker_size", marker_size_, "Marker size: ");
+
+    get_parameter("board_descriptions_path", board_descriptions_path_);
 
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
     retrieve_aruco_parameters(*this, detector_parameters_, true);
@@ -311,6 +328,58 @@ protected:
     retrieve_aruco_parameters(*this, detector_parameters_);
 
     return result;
+  }
+
+  void load_boards()
+  {
+    RCLCPP_INFO_STREAM(
+      get_logger(), "Trying to load board descriptions from " << board_descriptions_path_);
+
+    YAML::Node descriptions;
+    try {
+      descriptions = YAML::LoadFile(board_descriptions_path_);
+    } catch (const YAML::Exception & e) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Failed to load board descriptions: " << e.what());
+      return;
+    }
+
+    if (!descriptions.IsSequence()) {
+      RCLCPP_ERROR(get_logger(), "Failed to load board descriptions: root node is not a sequence");
+    }
+
+    for (const YAML::Node & desc : descriptions) {
+      std::string name;
+      try {
+        name = desc["name"].as<std::string>();
+        const bool frame_at_center = desc["frame_at_center"].as<bool>();
+        const int markers_x = desc["markers_x"].as<int>();
+        const int markers_y = desc["markers_y"].as<int>();
+        const double marker_size = desc["marker_size"].as<double>();
+        const double separation = desc["separation"].as<double>();
+
+        auto board = cv::aruco::GridBoard::create(
+          markers_x, markers_y, marker_size, separation,
+          dictionary_, desc["first_id"].as<int>());
+
+        if (frame_at_center) {
+          double offset_x = (markers_x * (marker_size + separation) - separation) / 2.0;
+          double offset_y = (markers_y * (marker_size + separation) - separation) / 2.0;
+          for (auto & obj : board->objPoints) {
+            for (auto & point : obj) {
+              point.x -= offset_x;
+              point.y -= offset_y;
+            }
+          }
+        }
+
+        boards_.push_back(std::make_pair(name, board));
+      } catch (const YAML::Exception & e) {
+        RCLCPP_ERROR_STREAM(get_logger(), "Failed to load board '" << name << "': " << e.what());
+        continue;
+      }
+      RCLCPP_ERROR_STREAM(
+        get_logger(), "Successfully loaded configuration for board '" << name << "'");
+    }
   }
 
   void update_marker_obj_points()
@@ -376,13 +445,14 @@ protected:
     int n_markers = marker_ids.size();
     std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
 
-    aruco_opencv_msgs::msg::MarkerDetection detection;
+    aruco_opencv_msgs::msg::ArucoDetection detection;
     detection.header.frame_id = img_msg->header.frame_id;
     detection.header.stamp = img_msg->header.stamp;
     detection.markers.resize(n_markers);
 
     {
       std::lock_guard<std::mutex> guard(cam_info_mutex_);
+
       cv::parallel_for_(
         cv::Range(0, n_markers), [&](const cv::Range & range) {
           for (size_t i = range.start; i < range.end; i++) {
@@ -396,6 +466,26 @@ protected:
             detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
           }
         });
+
+      for (const auto & board_desc : boards_) {
+        std::string name = board_desc.first;
+        auto & board = board_desc.second;
+
+        cv::Vec3d rvec, tvec;
+        int valid = cv::aruco::estimatePoseBoard(
+          marker_corners, marker_ids, board, camera_matrix_,
+          distortion_coeffs_, rvec, tvec);
+
+        if (valid > 0) {
+          aruco_opencv_msgs::msg::BoardPose bpose;
+          bpose.board_name = name;
+          bpose.pose = convert_rvec_tvec(rvec, tvec);
+          detection.boards.push_back(bpose);
+          rvec_final.push_back(rvec);
+          tvec_final.push_back(tvec);
+          n_markers++;
+        }
+      }
     }
 
     if (transform_poses_ && n_markers > 0) {
@@ -413,6 +503,9 @@ protected:
       for (auto & marker_pose : detection.markers) {
         tf2::doTransform(marker_pose.pose, marker_pose.pose, cam_to_output);
       }
+      for (auto & board_pose : detection.boards) {
+        tf2::doTransform(board_pose.pose, board_pose.pose, cam_to_output);
+      }
     }
 
     if (publish_tf_ && n_markers > 0) {
@@ -427,6 +520,16 @@ protected:
         transform.transform = tf2::toMsg(tf_transform);
         transforms.push_back(transform);
       }
+      for (auto & board_pose : detection.boards) {
+        geometry_msgs::msg::TransformStamped transform;
+        transform.header.stamp = detection.header.stamp;
+        transform.header.frame_id = detection.header.frame_id;
+        transform.child_frame_id = std::string("board_") + board_pose.board_name;
+        tf2::Transform tf_transform;
+        tf2::fromMsg(board_pose.pose, tf_transform);
+        transform.transform = tf2::toMsg(tf_transform);
+        transforms.push_back(transform);
+      }
       tf_broadcaster_->sendTransform(transforms);
     }
 
@@ -437,7 +540,7 @@ protected:
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
       {
         std::lock_guard<std::mutex> guard(cam_info_mutex_);
-        for (size_t i = 0; i < marker_ids.size(); i++) {
+        for (size_t i = 0; i < n_markers; i++) {
           cv::drawFrameAxes(
             debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
             tvec_final[i], 0.2, 3);
@@ -460,11 +563,11 @@ protected:
   }
 };
 
-class SingleMarkerTrackerAutostart : public SingleMarkerTracker
+class ArucoTrackerAutostart : public ArucoTracker
 {
 public:
-  explicit SingleMarkerTrackerAutostart(rclcpp::NodeOptions options)
-  : SingleMarkerTracker(options)
+  explicit ArucoTrackerAutostart(rclcpp::NodeOptions options)
+  : ArucoTracker(options)
   {
     auto new_state = configure();
     if (new_state.label() == "inactive") {
@@ -476,5 +579,5 @@ public:
 }  // namespace aruco_opencv
 
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::SingleMarkerTracker)
-RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::SingleMarkerTrackerAutostart)
+RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::ArucoTracker)
+RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::ArucoTrackerAutostart)
