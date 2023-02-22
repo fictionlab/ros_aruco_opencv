@@ -309,7 +309,6 @@ private:
         detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
       }
     });
-    cam_info_mutex_.unlock();
 
     for (const auto &board_desc : boards_) {
       std::string name = board_desc.first;
@@ -329,6 +328,7 @@ private:
         n_markers++;
       }
     }
+    cam_info_mutex_.unlock();
 
     if (transform_poses_ && n_markers > 0) {
       detection.header.frame_id = output_frame_;
