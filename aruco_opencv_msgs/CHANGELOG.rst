@@ -2,6 +2,13 @@
 Changelog for package aruco_opencv_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add board detection (ROS2) (backport `#16 <https://github.com/fictionlab/aruco_opencv/issues/16>`_) (`#17 <https://github.com/fictionlab/aruco_opencv/issues/17>`_)
+  * Add BoardPose msg, change MarkerDetection to ArucoDetection
+* Add ament_lint tests to cmakelists instead of github workflows (backport `#7 <https://github.com/fictionlab/aruco_opencv/issues/7>`_) (`#9 <https://github.com/fictionlab/aruco_opencv/issues/9>`_)
+* Contributors: Błażej Sowa
+
 1.0.1 (2022-12-14)
 ------------------
 * Fix package dependencies
