@@ -13,7 +13,7 @@ find_package(image_transport REQUIRED)
 find_package(OpenCV ${OpenCV_VERSION} REQUIRED COMPONENTS aruco)
 
 add_library(${PROJECT_NAME} SHARED
-  src/single_marker_tracker.cpp
+  src/aruco_tracker.cpp
   src/utils.cpp
 )
 target_link_libraries(${PROJECT_NAME}
@@ -34,12 +34,12 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 rclcpp_components_register_node(${PROJECT_NAME}
-  PLUGIN "aruco_opencv::SingleMarkerTracker"
-  EXECUTABLE "single_marker_tracker"
+  PLUGIN "aruco_opencv::ArucoTracker"
+  EXECUTABLE "aruco_tracker"
 )
 rclcpp_components_register_node(${PROJECT_NAME}
-  PLUGIN "aruco_opencv::SingleMarkerTrackerAutostart"
-  EXECUTABLE "single_marker_tracker_autostart"
+  PLUGIN "aruco_opencv::ArucoTrackerAutostart"
+  EXECUTABLE "aruco_tracker_autostart"
 )
 
 install(

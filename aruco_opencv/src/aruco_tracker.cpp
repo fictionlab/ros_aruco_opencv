@@ -47,7 +47,7 @@ using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 namespace aruco_opencv
 {
 
-class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
+class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
 {
   // Parameters
   std::string cam_base_topic_;
@@ -88,8 +88,8 @@ class SingleMarkerTracker : public rclcpp_lifecycle::LifecycleNode
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
 public:
-  explicit SingleMarkerTracker(rclcpp::NodeOptions options)
-  : LifecycleNode("single_marker_tracker", options),
+  explicit ArucoTracker(rclcpp::NodeOptions options)
+  : LifecycleNode("aruco_tracker", options),
     camera_matrix_(3, 3, CV_64FC1),
     distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0)),
     marker_obj_points_(4, 1, CV_32FC3)
@@ -142,7 +142,7 @@ public:
     on_set_parameter_callback_handle_ =
       add_on_set_parameters_callback(
       std::bind(
-        &SingleMarkerTracker::callback_on_set_parameters,
+        &ArucoTracker::callback_on_set_parameters,
         this, std::placeholders::_1));
 
     RCLCPP_INFO(get_logger(), "Waiting for first camera info...");
@@ -152,7 +152,7 @@ public:
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
     cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
       cam_info_topic, 1,
-      std::bind(&SingleMarkerTracker::callback_camera_info, this, std::placeholders::_1));
+      std::bind(&ArucoTracker::callback_camera_info, this, std::placeholders::_1));
 
     rmw_qos_profile_t image_sub_qos = rmw_qos_profile_default;
     image_sub_qos.reliability =
@@ -164,7 +164,7 @@ public:
 
     img_sub_ = create_subscription<sensor_msgs::msg::Image>(
       cam_base_topic_, qos, std::bind(
-        &SingleMarkerTracker::callback_image, this, std::placeholders::_1));
+        &ArucoTracker::callback_image, this, std::placeholders::_1));
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -460,11 +460,11 @@ protected:
   }
 };
 
-class SingleMarkerTrackerAutostart : public SingleMarkerTracker
+class ArucoTrackerAutostart : public ArucoTracker
 {
 public:
-  explicit SingleMarkerTrackerAutostart(rclcpp::NodeOptions options)
-  : SingleMarkerTracker(options)
+  explicit ArucoTrackerAutostart(rclcpp::NodeOptions options)
+  : ArucoTracker(options)
   {
     auto new_state = configure();
     if (new_state.label() == "inactive") {
@@ -476,5 +476,5 @@ public:
 }  // namespace aruco_opencv
 
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::SingleMarkerTracker)
-RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::SingleMarkerTrackerAutostart)
+RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::ArucoTracker)
+RCLCPP_COMPONENTS_REGISTER_NODE(aruco_opencv::ArucoTrackerAutostart)
