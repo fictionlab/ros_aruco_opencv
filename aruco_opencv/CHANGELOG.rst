@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.0 (2023-02-22)
+------------------
 * Add python dependencies (`#19 <https://github.com/fictionlab/aruco_opencv/issues/19>`_) (`#20 <https://github.com/fictionlab/aruco_opencv/issues/20>`_)
 * Add board detection (ROS2) (backport `#16 <https://github.com/fictionlab/aruco_opencv/issues/16>`_) (`#17 <https://github.com/fictionlab/aruco_opencv/issues/17>`_)
   * Rename SingleMarkerTracker to ArucoTracker
