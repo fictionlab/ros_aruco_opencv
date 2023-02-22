@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
   tf2_ros
 )
+find_package(OpenCV ${OpenCV_VERSION} REQUIRED COMPONENTS aruco)
 find_package(yaml-cpp REQUIRED)
 
 generate_dynamic_reconfigure_options(
@@ -31,6 +32,7 @@ add_library(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
+  opencv_aruco
   ${YAML_CPP_LIBRARIES}
 )
 add_dependencies(${PROJECT_NAME}

@@ -293,7 +293,12 @@ private:
     detection.markers.resize(n_markers);
 
     cam_info_mutex_.lock();
+#if CV_VERSION_MAJOR >= 4
     cv::parallel_for_(cv::Range(0, n_markers), [&](const cv::Range &range) {
+#else
+    const cv::Range range = cv::Range(0, n_markers);
+    ({
+#endif
       for (int i = range.start; i < range.end; i++) {
         int id = marker_ids[i];
 
