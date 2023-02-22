@@ -221,7 +221,7 @@ protected:
     declare_param(*this, "cam_base_topic", "camera/image_raw");
     declare_param(*this, "image_is_rectified", false, false);
     declare_param(*this, "output_frame", "");
-    declare_param(*this, "marker_dict", "ARUCO_ORIGINAL");
+    declare_param(*this, "marker_dict", "4X4_50");
     declare_param(
       *this, "image_sub_qos.reliability",
       static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
