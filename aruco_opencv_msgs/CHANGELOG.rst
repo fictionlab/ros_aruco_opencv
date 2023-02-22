@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2023-02-22)
+------------------
 * Add Board detection (`#6 <https://github.com/fictionlab/aruco_opencv/issues/6>`_)
   * Add BoardPose msg, change MarkerDetection to ArucoDetection
 * Contributors: Błażej Sowa
