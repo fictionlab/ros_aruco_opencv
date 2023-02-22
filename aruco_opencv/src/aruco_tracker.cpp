@@ -37,7 +37,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/camera_common.hpp"
 
-#include "aruco_opencv_msgs/msg/marker_detection.hpp"
+#include "aruco_opencv_msgs/msg/aruco_detection.hpp"
 
 #include "aruco_opencv/utils.hpp"
 #include "aruco_opencv/parameters.hpp"
@@ -64,7 +64,7 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
 
   // ROS
   OnSetParametersCallbackHandle::SharedPtr on_set_parameter_callback_handle_;
-  rclcpp_lifecycle::LifecyclePublisher<aruco_opencv_msgs::msg::MarkerDetection>::SharedPtr
+  rclcpp_lifecycle::LifecyclePublisher<aruco_opencv_msgs::msg::ArucoDetection>::SharedPtr
     detection_pub_;
   rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
@@ -118,8 +118,8 @@ public:
       tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
     }
 
-    detection_pub_ = create_publisher<aruco_opencv_msgs::msg::MarkerDetection>(
-      "marker_detections", 5);
+    detection_pub_ = create_publisher<aruco_opencv_msgs::msg::ArucoDetection>(
+      "aruco_detections", 5);
     debug_pub_ = create_publisher<sensor_msgs::msg::Image>("~/debug", 5);
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
@@ -376,7 +376,7 @@ protected:
     int n_markers = marker_ids.size();
     std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
 
-    aruco_opencv_msgs::msg::MarkerDetection detection;
+    aruco_opencv_msgs::msg::ArucoDetection detection;
     detection.header.frame_id = img_msg->header.frame_id;
     detection.header.stamp = img_msg->header.stamp;
     detection.markers.resize(n_markers);

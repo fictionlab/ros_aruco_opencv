@@ -7,7 +7,8 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/MarkerDetection.msg"
+  "msg/ArucoDetection.msg"
+  "msg/BoardPose.msg"
   "msg/MarkerPose.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
