@@ -1,4 +1,5 @@
 cam_base_topic: camera/image_raw
+image_is_rectified: false
 output_frame: ''
 
 marker_dict: 4X4_50

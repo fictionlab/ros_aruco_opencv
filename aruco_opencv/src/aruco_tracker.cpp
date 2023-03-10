@@ -46,6 +46,7 @@ class ArucoTracker : public nodelet::Nodelet {
 
   // Parameters
   std::string cam_base_topic_;
+  bool image_is_rectified_;
   std::string output_frame_;
   std::string marker_dict_;
   bool transform_poses_;
@@ -82,7 +83,9 @@ class ArucoTracker : public nodelet::Nodelet {
   tf2_ros::TransformBroadcaster *tf_broadcaster_;
 
 public:
-  ArucoTracker() : camera_matrix_(3, 3, CV_64FC1), marker_obj_points_(4, 1, CV_32FC3) {}
+  ArucoTracker()
+      : camera_matrix_(3, 3, CV_64FC1), distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0)),
+        marker_obj_points_(4, 1, CV_32FC3) {}
 
 private:
   void onInit() override {
@@ -137,6 +140,9 @@ private:
   void retrieve_parameters(ros::NodeHandle &pnh) {
     pnh.param<std::string>("cam_base_topic", cam_base_topic_, "camera/image_raw");
     ROS_INFO_STREAM("Camera Base Topic: " << cam_base_topic_);
+
+    pnh.param<bool>("image_is_rectified", image_is_rectified_, false);
+    ROS_INFO_STREAM("Assume images are rectified: " << (image_is_rectified_ ? "YES" : "NO"));
 
     pnh.param<std::string>("output_frame", output_frame_, "");
     if (output_frame_.empty()) {
@@ -247,9 +253,14 @@ private:
   void callback_camera_info(const sensor_msgs::CameraInfo &cam_info) {
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
-    for (int i = 0; i < 9; ++i)
-      camera_matrix_.at<double>(i / 3, i % 3) = cam_info.K[i];
-    distortion_coeffs_ = cv::Mat(cam_info.D, true);
+    if (image_is_rectified_) {
+      for (int i = 0; i < 9; ++i)
+        camera_matrix_.at<double>(i / 3, i % 3) = cam_info.P[i];
+    } else {
+      for (int i = 0; i < 9; ++i)
+        camera_matrix_.at<double>(i / 3, i % 3) = cam_info.K[i];
+      distortion_coeffs_ = cv::Mat(cam_info.D, true);
+    }
 
     if (!cam_info_retrieved_) {
       NODELET_INFO("First camera info retrieved.");
