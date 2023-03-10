@@ -82,9 +82,7 @@ class ArucoTracker : public nodelet::Nodelet {
   tf2_ros::TransformBroadcaster *tf_broadcaster_;
 
 public:
-  ArucoTracker()
-      : camera_matrix_(3, 3, CV_64FC1), distortion_coeffs_(4, 1, CV_64FC1),
-        marker_obj_points_(4, 1, CV_32FC3) {}
+  ArucoTracker() : camera_matrix_(3, 3, CV_64FC1), marker_obj_points_(4, 1, CV_32FC3) {}
 
 private:
   void onInit() override {
@@ -251,8 +249,7 @@ private:
 
     for (int i = 0; i < 9; ++i)
       camera_matrix_.at<double>(i / 3, i % 3) = cam_info.K[i];
-    for (int i = 0; i < 4; ++i)
-      distortion_coeffs_.at<double>(i, 0) = cam_info.D[i];
+    distortion_coeffs_ = cv::Mat(cam_info.D, true);
 
     if (!cam_info_retrieved_) {
       NODELET_INFO("First camera info retrieved.");
@@ -292,48 +289,49 @@ private:
     detection.header.stamp = img_msg->header.stamp;
     detection.markers.resize(n_markers);
 
-    cam_info_mutex_.lock();
+    {
+      std::lock_guard<std::mutex> guard(cam_info_mutex_);
 #if CV_VERSION_MAJOR >= 4
-    cv::parallel_for_(cv::Range(0, n_markers), [&](const cv::Range &range) {
+      cv::parallel_for_(cv::Range(0, n_markers), [&](const cv::Range &range) {
 #else
-    const cv::Range range = cv::Range(0, n_markers);
-    ({
+      const cv::Range range = cv::Range(0, n_markers);
+      ({
 #endif
-      for (int i = range.start; i < range.end; i++) {
-        int id = marker_ids[i];
+        for (int i = range.start; i < range.end; i++) {
+          int id = marker_ids[i];
 
 #if CV_VERSION_MAJOR >= 4
-        cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                     rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+          cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+                       rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
 #else
-        cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-                     rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
+          cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
+                       rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_ITERATIVE);
 #endif
 
-        detection.markers[i].marker_id = id;
-        detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
-      }
-    });
+          detection.markers[i].marker_id = id;
+          detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
+        }
+      });
 
-    for (const auto &board_desc : boards_) {
-      std::string name = board_desc.first;
-      auto &board = board_desc.second;
+      for (const auto &board_desc : boards_) {
+        std::string name = board_desc.first;
+        auto &board = board_desc.second;
 
-      cv::Vec3d rvec, tvec;
-      int valid = cv::aruco::estimatePoseBoard(marker_corners, marker_ids, board, camera_matrix_,
-                                               distortion_coeffs_, rvec, tvec);
+        cv::Vec3d rvec, tvec;
+        int valid = cv::aruco::estimatePoseBoard(marker_corners, marker_ids, board, camera_matrix_,
+                                                 distortion_coeffs_, rvec, tvec);
 
-      if (valid > 0) {
-        aruco_opencv_msgs::BoardPose bpose;
-        bpose.board_name = name;
-        bpose.pose = convert_rvec_tvec(rvec, tvec);
-        detection.boards.push_back(bpose);
-        rvec_final.push_back(rvec);
-        tvec_final.push_back(tvec);
-        n_markers++;
+        if (valid > 0) {
+          aruco_opencv_msgs::BoardPose bpose;
+          bpose.board_name = name;
+          bpose.pose = convert_rvec_tvec(rvec, tvec);
+          detection.boards.push_back(bpose);
+          rvec_final.push_back(rvec);
+          tvec_final.push_back(tvec);
+          n_markers++;
+        }
       }
     }
-    cam_info_mutex_.unlock();
 
     if (transform_poses_ && n_markers > 0) {
       detection.header.frame_id = output_frame_;
@@ -382,14 +380,17 @@ private:
     if (debug_pub_.getNumSubscribers() > 0) {
       auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
-      for (size_t i = 0; i < n_markers; i++) {
+      {
+        std::lock_guard<std::mutex> guard(cam_info_mutex_);
+        for (size_t i = 0; i < n_markers; i++) {
 #if CV_VERSION_MAJOR >= 4
-        cv::drawFrameAxes(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
-                          tvec_final[i], 0.2, 3);
+          cv::drawFrameAxes(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
+                            tvec_final[i], 0.2, 3);
 #else
-        cv::aruco::drawAxis(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
-                            tvec_final[i], 0.2);
+          cv::aruco::drawAxis(debug_cv_ptr->image, camera_matrix_, distortion_coeffs_,
+                              rvec_final[i], tvec_final[i], 0.2);
 #endif
+        }
       }
 
       debug_pub_.publish(debug_cv_ptr->toImageMsg());
