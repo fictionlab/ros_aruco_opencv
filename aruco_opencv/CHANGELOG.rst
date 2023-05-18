@@ -2,6 +2,9 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 4.1.0 (2023-02-22)
 ------------------
 * Add python dependencies (`#19 <https://github.com/fictionlab/ros_aruco_opencv/issues/19>`_)
