@@ -2,6 +2,11 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix create_marker and create_board script permissions (`#22 <https://github.com/fictionlab/aruco_opencv/issues/22>`_) (`#24 <https://github.com/fictionlab/aruco_opencv/issues/24>`_)
+* Contributors: Błażej Sowa
+
 2.1.0 (2023-02-22)
 ------------------
 * Add python dependencies (`#19 <https://github.com/fictionlab/aruco_opencv/issues/19>`_) (`#21 <https://github.com/fictionlab/aruco_opencv/issues/21>`_)
