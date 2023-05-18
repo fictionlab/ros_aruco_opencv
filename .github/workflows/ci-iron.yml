@@ -1,16 +1,16 @@
-name: CI-Rolling
+name: CI-Iron
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - rolling
+      - iron
   pull_request:
     branches:
-      - rolling
+      - iron
 
 env:
- ROS_DISTRO: rolling
+ ROS_DISTRO: iron
 
 jobs:
   industrial_ci:
