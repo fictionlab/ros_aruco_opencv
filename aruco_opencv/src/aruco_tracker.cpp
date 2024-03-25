@@ -60,6 +60,7 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   bool transform_poses_;
   bool publish_tf_;
   double marker_size_;
+  bool image_sub_compressed_;
   int image_sub_qos_reliability_;
   int image_sub_qos_durability_;
   int image_sub_qos_depth_;
@@ -73,6 +74,7 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr img_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_img_sub_;
   rclcpp::Time last_msg_stamp_;
   bool cam_info_retrieved_ = false;
 
@@ -159,6 +161,11 @@ public:
     cam_info_retrieved_ = false;
 
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
+    if (cam_base_topic_.size() > 0 && cam_base_topic_[0] != '/' && cam_info_topic.size() > 0 && cam_info_topic[0] == '/') {
+      // Remove leading slash to allow for relative camera_base_topic.
+      cam_info_topic = cam_info_topic.substr(1);
+    }
+
     cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
       cam_info_topic, 1,
       std::bind(&ArucoTracker::callback_camera_info, this, std::placeholders::_1));
@@ -171,9 +178,15 @@ public:
 
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(image_sub_qos), image_sub_qos);
 
-    img_sub_ = create_subscription<sensor_msgs::msg::Image>(
-      cam_base_topic_, qos, std::bind(
-        &ArucoTracker::callback_image, this, std::placeholders::_1));
+    if (image_sub_compressed_) {
+      compressed_img_sub_ = create_subscription<sensor_msgs::msg::CompressedImage>(
+        cam_base_topic_ + "/compressed", qos, std::bind(
+          &ArucoTracker::callback_compressed_image, this, std::placeholders::_1));
+    } else {
+      img_sub_ = create_subscription<sensor_msgs::msg::Image>(
+        cam_base_topic_, qos, std::bind(
+          &ArucoTracker::callback_image, this, std::placeholders::_1));
+    }
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -185,6 +198,7 @@ public:
     on_set_parameter_callback_handle_.reset();
     cam_info_sub_.reset();
     img_sub_.reset();
+    compressed_img_sub_.reset();
     tf_listener_.reset();
     tf_buffer_.reset();
 
@@ -231,6 +245,7 @@ protected:
     declare_param(*this, "image_is_rectified", false, false);
     declare_param(*this, "output_frame", "");
     declare_param(*this, "marker_dict", "4X4_50");
+    declare_param(*this, "image_sub_compressed", false);
     declare_param(
       *this, "image_sub_qos.reliability",
       static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
@@ -265,6 +280,8 @@ protected:
     }
 
     get_param(*this, "marker_dict", marker_dict_, "Marker Dictionary name: ");
+
+    get_parameter("image_sub_compressed", image_sub_compressed_);
 
     get_parameter("image_sub_qos.reliability", image_sub_qos_reliability_);
     get_parameter("image_sub_qos.durability", image_sub_qos_durability_);
@@ -406,6 +423,13 @@ protected:
       RCLCPP_INFO(get_logger(), "First camera info retrieved.");
       cam_info_retrieved_ = true;
     }
+  }
+
+  void callback_compressed_image(const sensor_msgs::msg::CompressedImage::ConstSharedPtr img_msg)
+  {
+    // Decompress the image using bridge
+    auto image = cv_bridge::toCvCopy(img_msg, "bgr8");
+    callback_image(image->toImageMsg());
   }
 
   void callback_image(const sensor_msgs::msg::Image::ConstSharedPtr img_msg)
