@@ -431,7 +431,9 @@ protected:
   {
     // Decompress the image using bridge
     auto image = cv_bridge::toCvCopy(img_msg, "bgr8");
-    callback_image(image->toImageMsg());
+    auto new_msg = image->toImageMsg();
+    new_msg->header = img_msg->header;
+    callback_image(new_msg);
   }
 
   void callback_image(const sensor_msgs::msg::Image::ConstSharedPtr img_msg)
