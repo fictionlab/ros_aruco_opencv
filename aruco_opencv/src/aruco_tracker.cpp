@@ -161,7 +161,9 @@ public:
     cam_info_retrieved_ = false;
 
     std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
-    if (cam_base_topic_.size() > 0 && cam_base_topic_[0] != '/' && cam_info_topic.size() > 0 && cam_info_topic[0] == '/') {
+    if (cam_base_topic_.size() > 0 && cam_base_topic_[0] != '/' &&
+      cam_info_topic.size() > 0 && cam_info_topic[0] == '/')
+    {
       // Remove leading slash to allow for relative camera_base_topic.
       cam_info_topic = cam_info_topic.substr(1);
     }
