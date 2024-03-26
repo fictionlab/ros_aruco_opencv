@@ -178,11 +178,11 @@ public:
 
     if (image_sub_compressed_) {
       compressed_img_sub_ = create_subscription<sensor_msgs::msg::CompressedImage>(
-        cam_base_topic_ + "/compressed", qos, std::bind(
+        image_topic + "/compressed", qos, std::bind(
           &ArucoTracker::callback_compressed_image, this, std::placeholders::_1));
     } else {
       img_sub_ = create_subscription<sensor_msgs::msg::Image>(
-        cam_base_topic_, qos, std::bind(
+        image_topic, qos, std::bind(
           &ArucoTracker::callback_image, this, std::placeholders::_1));
     }
 
