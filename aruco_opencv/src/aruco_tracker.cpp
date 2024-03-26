@@ -77,6 +77,7 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_img_sub_;
   rclcpp::Time last_msg_stamp_;
   bool cam_info_retrieved_ = false;
+  rclcpp::Time callback_start_time_;
 
   // Aruco
   cv::Mat camera_matrix_;
@@ -425,34 +426,51 @@ protected:
 
   void callback_compressed_image(const sensor_msgs::msg::CompressedImage::ConstSharedPtr img_msg)
   {
-    // Decompress the image using bridge
-    auto image = cv_bridge::toCvCopy(img_msg, "bgr8");
-    auto new_msg = image->toImageMsg();
-    new_msg->header = img_msg->header;
-    callback_image(new_msg);
+    if (!should_process_img_msg(img_msg)) {
+      return;
+    }
+
+    auto cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
+    process_image(cv_ptr);
   }
 
   void callback_image(const sensor_msgs::msg::Image::ConstSharedPtr img_msg)
   {
+    if (!should_process_img_msg(img_msg)) {
+      return;
+    }
+
+    auto cv_ptr = cv_bridge::toCvShare(img_msg);
+    process_image(cv_ptr);
+  }
+
+  template<typename ImgMsgT>
+  bool should_process_img_msg(ImgMsgT img_msg)
+  {
     RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [SUBSCRIBE]:\t" << img_msg.get());
 
     if (!cam_info_retrieved_) {
-      return;
+      RCLCPP_DEBUG(get_logger(), "Camera info not retrieved yet. Ignoring image...");
+      return false;
     }
 
     if (img_msg->header.stamp == last_msg_stamp_) {
       RCLCPP_DEBUG(
         get_logger(),
         "The new image has the same timestamp as the previous one (duplicate frame?). Ignoring...");
-      return;
+      return false;
     }
+
     last_msg_stamp_ = img_msg->header.stamp;
 
-    auto callback_start_time = get_clock()->now();
+    // We're ready to go, remember the current time to measure callback performance.
+    callback_start_time_ = get_clock()->now();
 
-    // Convert the image
-    auto cv_ptr = cv_bridge::toCvShare(img_msg);
+    return true;
+  }
 
+  void process_image(const cv_bridge::CvImageConstPtr & cv_ptr)
+  {
     std::vector<int> marker_ids;
     std::vector<std::vector<cv::Point2f>> marker_corners;
 
@@ -465,8 +483,8 @@ protected:
     std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
 
     aruco_opencv_msgs::msg::ArucoDetection detection;
-    detection.header.frame_id = img_msg->header.frame_id;
-    detection.header.stamp = img_msg->header.stamp;
+    detection.header.frame_id = cv_ptr->header.frame_id;
+    detection.header.stamp = cv_ptr->header.stamp;
     detection.markers.resize(n_markers);
 
     {
@@ -513,8 +531,8 @@ protected:
       // Retrieve camera -> output_frame transform
       try {
         cam_to_output = tf_buffer_->lookupTransform(
-          output_frame_, img_msg->header.frame_id,
-          img_msg->header.stamp, rclcpp::Duration::from_seconds(1.0));
+          output_frame_, cv_ptr->header.frame_id,
+          cv_ptr->header.stamp, rclcpp::Duration::from_seconds(1.0));
       } catch (tf2::TransformException & ex) {
         RCLCPP_ERROR_STREAM(get_logger(), ex.what());
         return;
@@ -555,7 +573,10 @@ protected:
     detection_pub_->publish(detection);
 
     if (debug_pub_->get_subscription_count() > 0) {
-      auto debug_cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
+      auto debug_cv_ptr = std::make_shared<cv_bridge::CvImage>();
+      debug_cv_ptr->header = cv_ptr->header;
+      debug_cv_ptr->encoding = cv_ptr->encoding;
+      debug_cv_ptr->image = cv_ptr->image.clone();  // copy elision
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
       {
         std::lock_guard<std::mutex> guard(cam_info_mutex_);
@@ -572,8 +593,8 @@ protected:
     }
 
     auto callback_end_time = get_clock()->now();
-    double whole_callback_duration = (callback_end_time - callback_start_time).seconds();
-    double image_send_duration = (callback_start_time - img_msg->header.stamp).seconds();
+    double whole_callback_duration = (callback_end_time - callback_start_time_).seconds();
+    double image_send_duration = (callback_start_time_ - cv_ptr->header.stamp).seconds();
 
     RCLCPP_DEBUG(
       get_logger(), "Image callback completed. The callback started %.4f s after the image"
