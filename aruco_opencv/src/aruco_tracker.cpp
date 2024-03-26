@@ -576,7 +576,7 @@ protected:
       auto debug_cv_ptr = std::make_shared<cv_bridge::CvImage>();
       debug_cv_ptr->header = cv_ptr->header;
       debug_cv_ptr->encoding = cv_ptr->encoding;
-      debug_cv_ptr->image = cv_ptr->image.clone();  // copy elision
+      debug_cv_ptr->image = cv_ptr->image.clone();
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
       {
         std::lock_guard<std::mutex> guard(cam_info_mutex_);
