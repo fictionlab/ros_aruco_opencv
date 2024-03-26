@@ -160,13 +160,9 @@ public:
 
     cam_info_retrieved_ = false;
 
-    std::string cam_info_topic = image_transport::getCameraInfoTopic(cam_base_topic_);
-    if (cam_base_topic_.size() > 0 && cam_base_topic_[0] != '/' &&
-      cam_info_topic.size() > 0 && cam_info_topic[0] == '/')
-    {
-      // Remove leading slash to allow for relative camera_base_topic.
-      cam_info_topic = cam_info_topic.substr(1);
-    }
+    std::string image_topic = rclcpp::expand_topic_or_service_name(
+      cam_base_topic_, this->get_name(), this->get_namespace());
+    std::string cam_info_topic = image_transport::getCameraInfoTopic(image_topic);
 
     cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
       cam_info_topic, 1,
