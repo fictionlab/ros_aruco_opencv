@@ -227,6 +227,7 @@ public:
     on_set_parameter_callback_handle_.reset();
     cam_info_sub_.reset();
     img_sub_.reset();
+    compressed_img_sub_.reset();
     tf_listener_.reset();
     tf_buffer_.reset();
     tf_broadcaster_.reset();
