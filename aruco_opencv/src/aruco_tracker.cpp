@@ -123,7 +123,8 @@ public:
     }
 
     #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-    dictionary_ = cv::makePtr<cv::aruco::Dictionary>(cv::aruco::getPredefinedDictionary(
+    dictionary_ = cv::makePtr<cv::aruco::Dictionary>(
+      cv::aruco::getPredefinedDictionary(
         ARUCO_DICT_MAP.at(marker_dict_)));
     #else
     dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
