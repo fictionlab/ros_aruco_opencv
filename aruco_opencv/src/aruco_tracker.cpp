@@ -405,8 +405,14 @@ protected:
             }
           }
 
+          // Create a new board with all the object point offsetted so that point (0,0)
+          // is at the center of the board
+          #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
           board = cv::makePtr<cv::aruco::Board>(obj_points, *dictionary_,
               desc["first_id"].as<int>());
+          #else
+          board = cv::aruco::Board::create(obj_points, dictionary_, desc["first_id"].as<int>());
+          #endif
         }
 
         boards_.push_back(std::make_pair(name, board));
