@@ -377,15 +377,16 @@ protected:
         const int markers_y = desc["markers_y"].as<int>();
         const double marker_size = desc["marker_size"].as<double>();
         const double separation = desc["separation"].as<double>();
+        const int first_id = desc["first_id"].as<int>();
 
         #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+        std::vector<int> ids(markers_x * markers_y);
+        std::iota(ids.begin(), ids.end(), first_id);
         cv::Ptr<cv::aruco::Board> board = cv::makePtr<cv::aruco::GridBoard>(
-          cv::Size(markers_x, markers_y), marker_size, separation,
-          *dictionary_, desc["first_id"].as<int>());
+          cv::Size(markers_x, markers_y), marker_size, separation, *dictionary_, ids);
         #else
         cv::Ptr<cv::aruco::Board> board = cv::aruco::GridBoard::create(
-          markers_x, markers_y, marker_size, separation,
-          dictionary_, desc["first_id"].as<int>());
+          markers_x, markers_y, marker_size, separation, dictionary_, first_id);
         #endif
 
         if (frame_at_center) {
@@ -408,10 +409,9 @@ protected:
           // Create a new board with all the object point offsetted so that point (0,0)
           // is at the center of the board
           #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-          board = cv::makePtr<cv::aruco::Board>(obj_points, *dictionary_,
-              desc["first_id"].as<int>());
+          board = cv::makePtr<cv::aruco::Board>(obj_points, *dictionary_, ids);
           #else
-          board = cv::aruco::Board::create(obj_points, dictionary_, desc["first_id"].as<int>());
+          board = cv::aruco::Board::create(obj_points, dictionary_, board->ids);
           #endif
         }
 
@@ -420,7 +420,7 @@ protected:
         RCLCPP_ERROR_STREAM(get_logger(), "Failed to load board '" << name << "': " << e.what());
         continue;
       }
-      RCLCPP_ERROR_STREAM(
+      RCLCPP_INFO_STREAM(
         get_logger(), "Successfully loaded configuration for board '" << name << "'");
     }
   }
