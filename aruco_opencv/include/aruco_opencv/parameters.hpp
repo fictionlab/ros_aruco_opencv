@@ -139,6 +139,8 @@ inline void declare_aruco_parameters(NodeT && node)
   declare_param_double_range(node,
     "aruco.cornerRefinementMinAccuracy",
     default_parameters->cornerRefinementMinAccuracy, 0.01, 1.0);
+  declare_param(node,
+    "aruco.detectInvertedMarker", default_parameters->detectInvertedMarker, true);
 }
 
 template<class NodeT>
@@ -196,6 +198,8 @@ void retrieve_aruco_parameters(
     "aruco.cornerRefinementMaxIterations", detector_parameters->cornerRefinementMaxIterations);
   node.get_parameter(
     "aruco.cornerRefinementMinAccuracy", detector_parameters->cornerRefinementMinAccuracy);
+  node.get_parameter(
+    "aruco.detectInvertedMarker", detector_parameters->detectInvertedMarker);
 
   if (log_values) {
     RCLCPP_INFO_STREAM(
@@ -261,6 +265,10 @@ void retrieve_aruco_parameters(
     RCLCPP_INFO_STREAM(
       node.get_logger(),
       " * cornerRefinementMinAccuracy: " << detector_parameters->cornerRefinementMinAccuracy);
+    RCLCPP_INFO_STREAM(
+      node.get_logger(),
+      " * detectInvertedMarker: " <<
+        (detector_parameters->detectInvertedMarker ? "TRUE" : "FALSE"));
   }
 }
 
