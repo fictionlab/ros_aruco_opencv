@@ -101,6 +101,12 @@ def parse_args() -> argparse.Namespace:
         help="Number of markers in the Y direction",
     )
     parser.add_argument(
+        "-i",
+        "--inverted",
+        action='store_true',
+        help="Whether the board should be inverted (white board)",
+    )
+    parser.add_argument(
         "id", type=int, nargs="+", help="ID of the first marker in the board"
     )
     return parser.parse_args()
@@ -143,6 +149,7 @@ def main():
         f"Output image size: {args.size:.3f} x {output_y_size:.3f} m - {output_x_pixels} x {output_y_pixels} pixels"
     )
     print(f"Output DPI: {dpi:.3f}")
+    print(f"Inverted: {"TRUE" if args.inverted else "FALSE"}")
 
     images = []
     for marker_id in args.id:
@@ -165,6 +172,9 @@ def main():
             args.margin_pixels,
             args.border_bits,
         )
+
+        if args.inverted:
+            marker = ~marker
 
         img = cv2.imencode(".png", marker)[1].tobytes()
         images.append(img)
