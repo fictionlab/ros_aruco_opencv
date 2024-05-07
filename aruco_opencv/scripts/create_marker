@@ -76,6 +76,12 @@ def parse_args() -> argparse.Namespace:
         default=0.10,
         help="Output marker size (with margins) in meters",
     )
+    parser.add_argument(
+        "-i",
+        "--inverted",
+        action='store_true',
+        help="Whether the marker should be inverted (white marker)",
+    )
     parser.add_argument("id", type=int, nargs="+", help="ID of the marker to generate")
     return parser.parse_args()
 
@@ -101,6 +107,7 @@ def main():
     )
     print(f"Output image side size: {args.size:.3f} m - {output_side_pixels} pixels")
     print(f"Output DPI: {dpi:.3f}")
+    print(f"Inverted: {"TRUE" if args.inverted else "FALSE"}")
 
     images = []
     for marker_id in args.id:
@@ -111,6 +118,8 @@ def main():
         )
         if args.margin_pixels > 0:
             marker = np.pad(marker, args.margin_pixels, constant_values=255)
+        if args.inverted:
+            marker = ~marker
         img = cv2.imencode(".png", marker)[1].tobytes()
         images.append(img)
 
