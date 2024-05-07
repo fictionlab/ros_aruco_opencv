@@ -225,6 +225,7 @@ public:
     detector_parameters_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
+    boards_.clear();
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -244,6 +245,7 @@ public:
     detector_parameters_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
+    boards_.clear();
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
