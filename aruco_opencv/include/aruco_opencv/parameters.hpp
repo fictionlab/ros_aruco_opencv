@@ -141,6 +141,17 @@ inline void declare_aruco_parameters(NodeT && node)
     default_parameters->cornerRefinementMinAccuracy, 0.01, 1.0);
   declare_param(node,
     "aruco.detectInvertedMarker", default_parameters->detectInvertedMarker, true);
+
+  #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 6
+  declare_param(node,
+    "aruco.useAruco3Detection", default_parameters->useAruco3Detection, true);
+  declare_param_int_range(node,
+    "aruco.minSideLengthCanonicalImg",
+    default_parameters->minSideLengthCanonicalImg, 1, 100);
+  declare_param_double_range(node,
+    "aruco.minMarkerLengthRatioOriginalImg",
+    default_parameters->minMarkerLengthRatioOriginalImg, 0.0, 1.0);
+  #endif
 }
 
 template<class NodeT>
@@ -200,6 +211,15 @@ void retrieve_aruco_parameters(
     "aruco.cornerRefinementMinAccuracy", detector_parameters->cornerRefinementMinAccuracy);
   node.get_parameter(
     "aruco.detectInvertedMarker", detector_parameters->detectInvertedMarker);
+
+  #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 6
+  node.get_parameter(
+    "aruco.useAruco3Detection", detector_parameters->useAruco3Detection);
+  node.get_parameter(
+    "aruco.minSideLengthCanonicalImg", detector_parameters->minSideLengthCanonicalImg);
+  node.get_parameter(
+    "aruco.minMarkerLengthRatioOriginalImg", detector_parameters->minMarkerLengthRatioOriginalImg);
+  #endif
 
   if (log_values) {
     RCLCPP_INFO_STREAM(
@@ -269,6 +289,20 @@ void retrieve_aruco_parameters(
       node.get_logger(),
       " * detectInvertedMarker: " <<
         (detector_parameters->detectInvertedMarker ? "TRUE" : "FALSE"));
+
+    #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 6
+    RCLCPP_INFO_STREAM(
+      node.get_logger(),
+      " * useAruco3Detection: " <<
+        (detector_parameters->useAruco3Detection ? "TRUE" : "FALSE"));
+    RCLCPP_INFO_STREAM(
+      node.get_logger(),
+      " * minSideLengthCanonicalImg: " << detector_parameters->minSideLengthCanonicalImg);
+    RCLCPP_INFO_STREAM(
+      node.get_logger(),
+      " * minMarkerLengthRatioOriginalImg: " <<
+        detector_parameters->minMarkerLengthRatioOriginalImg);
+    #endif
   }
 }
 

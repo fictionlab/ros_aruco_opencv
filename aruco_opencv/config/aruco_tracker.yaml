@@ -86,3 +86,15 @@
 
       # to check if there is a white marker
       detectInvertedMarker: false
+
+      # (required OpenCV 4.6.0+) enable the new and faster Aruco detection strategy.
+      # Proposed in the paper:
+      # Romero-Ramirez et al: Speeded up detection of squared fiducial markers (2018)
+      # https://www.researchgate.net/publication/325787310_Speeded_Up_Detection_of_Squared_Fiducial_Markers
+      useAruco3Detection: false
+
+      # (required OpenCV 4.6.0+) minimum side length of a marker in the canonical image. Latter is the binarized image in which contours are searched
+      minSideLengthCanonicalImg: 32
+
+      # (required OpenCV 4.6.0+) range [0,1], eq (2) from paper. The parameter tau_i has a direct influence on the processing speed.
+      minMarkerLengthRatioOriginalImg: 0.0
