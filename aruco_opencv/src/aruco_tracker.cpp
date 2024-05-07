@@ -108,7 +108,11 @@ public:
   {
     RCLCPP_INFO(get_logger(), "Configuring");
 
+    #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+    detector_parameters_ = cv::makePtr<cv::aruco::DetectorParameters>();
+    #else
     detector_parameters_ = cv::aruco::DetectorParameters::create();
+    #endif
 
     retrieve_parameters();
 
@@ -117,7 +121,12 @@ public:
       return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
+    #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+    dictionary_ = cv::makePtr<cv::aruco::Dictionary>(cv::aruco::getPredefinedDictionary(
+        ARUCO_DICT_MAP.at(marker_dict_)));
+    #else
     dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
+    #endif
 
     if (!board_descriptions_path_.empty()) {
       load_boards();
@@ -230,6 +239,7 @@ public:
     tf_listener_.reset();
     tf_buffer_.reset();
     tf_broadcaster_.reset();
+    dictionary_.reset();
     detector_parameters_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
@@ -368,19 +378,35 @@ protected:
         const double marker_size = desc["marker_size"].as<double>();
         const double separation = desc["separation"].as<double>();
 
-        auto board = cv::aruco::GridBoard::create(
+        #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+        cv::Ptr<cv::aruco::Board> board = cv::makePtr<cv::aruco::GridBoard>(
+          cv::Size(markers_x, markers_y), marker_size, separation,
+          *dictionary_, desc["first_id"].as<int>());
+        #else
+        cv::Ptr<cv::aruco::Board> board = cv::aruco::GridBoard::create(
           markers_x, markers_y, marker_size, separation,
           dictionary_, desc["first_id"].as<int>());
+        #endif
 
         if (frame_at_center) {
           double offset_x = (markers_x * (marker_size + separation) - separation) / 2.0;
           double offset_y = (markers_y * (marker_size + separation) - separation) / 2.0;
-          for (auto & obj : board->objPoints) {
+
+          #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+          std::vector<std::vector<cv::Point3f>> obj_points(board->getObjPoints());
+          #else
+          std::vector<std::vector<cv::Point3f>> obj_points(board->objPoints);
+          #endif
+
+          for (auto & obj : obj_points) {
             for (auto & point : obj) {
               point.x -= offset_x;
               point.y -= offset_y;
             }
           }
+
+          board = cv::makePtr<cv::aruco::Board>(obj_points, *dictionary_,
+              desc["first_id"].as<int>());
         }
 
         boards_.push_back(std::make_pair(name, board));

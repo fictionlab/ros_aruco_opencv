@@ -34,6 +34,12 @@ namespace aruco_opencv
 
 geometry_msgs::msg::Pose convert_rvec_tvec(const cv::Vec3d & rvec, const cv::Vec3d & tvec);
 
-extern const std::unordered_map<std::string, cv::aruco::PREDEFINED_DICTIONARY_NAME> ARUCO_DICT_MAP;
+#if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+using ArucoDictType = cv::aruco::PredefinedDictionaryType;
+#else
+using ArucoDictType = cv::aruco::PREDEFINED_DICTIONARY_NAME;
+#endif
+
+extern const std::unordered_map<std::string, ArucoDictType> ARUCO_DICT_MAP;
 
 }  // namespace aruco_opencv

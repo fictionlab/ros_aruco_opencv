@@ -147,8 +147,17 @@ void retrieve_aruco_parameters(
     "aruco.minOtsuStdDev", detector_parameters->minOtsuStdDev);
   node.get_parameter(
     "aruco.errorCorrectionRate", detector_parameters->errorCorrectionRate);
+
+  #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+  int refine_method = 0;
+  node.get_parameter("aruco.cornerRefinementMethod", refine_method);
+  detector_parameters->cornerRefinementMethod =
+    static_cast<cv::aruco::CornerRefineMethod>(refine_method);
+  #else
   node.get_parameter(
     "aruco.cornerRefinementMethod", detector_parameters->cornerRefinementMethod);
+  #endif
+
   node.get_parameter(
     "aruco.cornerRefinementWinSize", detector_parameters->cornerRefinementWinSize);
   node.get_parameter(
