@@ -78,6 +78,7 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   rclcpp::Time last_msg_stamp_;
   bool cam_info_retrieved_ = false;
   rclcpp::Time callback_start_time_;
+  bool new_aruco_params_ = false;
 
   // Aruco
   cv::Mat camera_matrix_;
@@ -329,13 +330,12 @@ protected:
       }
     }
 
-    bool aruco_param_changed = false;
     for (auto & param : parameters) {
       if (param.get_name() == "marker_size") {
         marker_size_ = param.as_double();
         update_marker_obj_points();
       } else if (param.get_name().rfind("aruco", 0) == 0) {
-        aruco_param_changed = true;
+        new_aruco_params_ = true;
       } else {
         // Unknown parameter, ignore
         continue;
@@ -345,12 +345,6 @@ protected:
         get_logger(),
         "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
     }
-
-    if (!aruco_param_changed) {
-      return result;
-    }
-
-    retrieve_aruco_parameters(*this, detector_parameters_);
 
     return result;
   }
@@ -507,6 +501,11 @@ protected:
 
   void process_image(const cv_bridge::CvImageConstPtr & cv_ptr)
   {
+    if (new_aruco_params_) {
+      new_aruco_params_ = false;
+      retrieve_aruco_parameters(*this, detector_parameters_);
+    }
+
     std::vector<int> marker_ids;
     std::vector<std::vector<cv::Point2f>> marker_corners;
 
