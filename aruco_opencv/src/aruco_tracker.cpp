@@ -438,8 +438,8 @@ protected:
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
     if (image_is_rectified_) {
-      for (int i = 0; i < 12; ++i) {
-        camera_matrix_.at<double>(i / 4, i % 4) = cam_info->p[i];
+      for (int i = 0; i < 9; ++i) {
+        camera_matrix_.at<double>(i / 3, i % 3) = cam_info->p[i + i / 3];
       }
     } else {
       for (int i = 0; i < 9; ++i) {
