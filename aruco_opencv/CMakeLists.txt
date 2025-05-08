@@ -27,7 +27,7 @@ target_link_libraries(${PROJECT_NAME}
   opencv_aruco
   ${YAML_CPP_LIBRARIES}
 )
-ament_target_dependencies(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME} PUBLIC
   aruco_opencv_msgs
   cv_bridge
 )
