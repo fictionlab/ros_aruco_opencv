@@ -1,4 +1,4 @@
-name: CI-Rolling
+name: CI
 
 on:
   workflow_dispatch:
@@ -9,17 +9,16 @@ on:
     branches:
       - ros2
 
-env:
- ROS_DISTRO: rolling
-
 jobs:
   industrial_ci:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        ROS_DISTRO: [jazzy, kilted, rolling]
         ROS_REPO: [testing, main]
     env:
+      ROS_DISTRO: ${{ matrix.ROS_DISTRO }}
       ROS_REPO: ${{ matrix.ROS_REPO }}
     steps:
       - name: Checkout repo
