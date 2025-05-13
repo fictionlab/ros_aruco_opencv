@@ -17,7 +17,7 @@ add_library(${PROJECT_NAME} SHARED
   src/aruco_tracker.cpp
   src/utils.cpp
 )
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME} PUBLIC
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   rclcpp_components::component
@@ -26,10 +26,8 @@ target_link_libraries(${PROJECT_NAME}
   image_transport::image_transport
   opencv_aruco
   ${YAML_CPP_LIBRARIES}
-)
-ament_target_dependencies(${PROJECT_NAME}
-  aruco_opencv_msgs
-  cv_bridge
+  ${aruco_opencv_msgs_TARGETS}
+  cv_bridge::cv_bridge
 )
 target_include_directories(${PROJECT_NAME}
   PRIVATE
