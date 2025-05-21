@@ -4,7 +4,7 @@
   schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>aruco_opencv_msgs</name>
-  <version>6.0.1</version>
+  <version>6.0.2</version>
   <description>
     Message definitions for aruco_opencv package.
   </description>

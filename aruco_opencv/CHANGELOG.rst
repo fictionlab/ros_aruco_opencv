@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+6.0.2 (2025-05-21)
+------------------
 * Don't use deprecated tf2 headers (`#53 <https://github.com/fictionlab/ros_aruco_opencv/issues/53>`_)
 * Update deprecated call to ament_target_dependencies (`#51 <https://github.com/fictionlab/ros_aruco_opencv/issues/51>`_)
 * Contributors: Błażej Sowa, David V. Lu!!
