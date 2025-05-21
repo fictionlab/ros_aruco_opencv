@@ -2,6 +2,12 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Don't use deprecated tf2 headers (`#53 <https://github.com/fictionlab/ros_aruco_opencv/issues/53>`_)
+* Update deprecated call to ament_target_dependencies (`#51 <https://github.com/fictionlab/ros_aruco_opencv/issues/51>`_)
+* Contributors: Błażej Sowa, David V. Lu!!
+
 6.0.1 (2024-06-04)
 ------------------
 * Fix out of bounds indexes when retrieving camera matrix for rectified images (`#47 <https://github.com/fictionlab/ros_aruco_opencv/issues/47>`_)
