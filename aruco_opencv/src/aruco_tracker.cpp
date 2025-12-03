@@ -44,6 +44,7 @@
 #include "aruco_opencv/utils.hpp"
 #include "aruco_opencv/parameters.hpp"
 #include "aruco_opencv/detector.hpp"
+#include "aruco_opencv/board_loader.hpp"
 
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
@@ -362,75 +363,18 @@ protected:
 
   void load_boards()
   {
-    RCLCPP_INFO_STREAM(
-      get_logger(), "Trying to load board descriptions from " << board_descriptions_path_);
-
-    YAML::Node descriptions;
-    try {
-      descriptions = YAML::LoadFile(board_descriptions_path_);
-    } catch (const YAML::Exception & e) {
-      RCLCPP_ERROR_STREAM(get_logger(), "Failed to load board descriptions: " << e.what());
+    RCLCPP_INFO_STREAM(get_logger(),
+        "Trying to load board descriptions from " << board_descriptions_path_);
+    std::string err;
+    std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> loaded;
+    if (!BoardLoader::loadFromFile(board_descriptions_path_, dictionary_, loaded, err)) {
+      RCLCPP_ERROR_STREAM(get_logger(), err);
       return;
     }
-
-    if (!descriptions.IsSequence()) {
-      RCLCPP_ERROR(get_logger(), "Failed to load board descriptions: root node is not a sequence");
-    }
-
-    for (const YAML::Node & desc : descriptions) {
-      std::string name;
-      try {
-        name = desc["name"].as<std::string>();
-        const bool frame_at_center = desc["frame_at_center"].as<bool>();
-        const int markers_x = desc["markers_x"].as<int>();
-        const int markers_y = desc["markers_y"].as<int>();
-        const double marker_size = desc["marker_size"].as<double>();
-        const double separation = desc["separation"].as<double>();
-        const int first_id = desc["first_id"].as<int>();
-
-        #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-        std::vector<int> ids(markers_x * markers_y);
-        std::iota(ids.begin(), ids.end(), first_id);
-        cv::Ptr<cv::aruco::Board> board = cv::makePtr<cv::aruco::GridBoard>(
-          cv::Size(markers_x, markers_y), marker_size, separation, *dictionary_, ids);
-        #else
-        cv::Ptr<cv::aruco::Board> board = cv::aruco::GridBoard::create(
-          markers_x, markers_y, marker_size, separation, dictionary_, first_id);
-        #endif
-
-        if (frame_at_center) {
-          double offset_x = (markers_x * (marker_size + separation) - separation) / 2.0;
-          double offset_y = (markers_y * (marker_size + separation) - separation) / 2.0;
-
-          #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-          std::vector<std::vector<cv::Point3f>> obj_points(board->getObjPoints());
-          #else
-          std::vector<std::vector<cv::Point3f>> obj_points(board->objPoints);
-          #endif
-
-          for (auto & obj : obj_points) {
-            for (auto & point : obj) {
-              point.x -= offset_x;
-              point.y -= offset_y;
-            }
-          }
-
-          // Create a new board with all the object point offsetted so that point (0,0)
-          // is at the center of the board
-          #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-          board = cv::makePtr<cv::aruco::Board>(obj_points, *dictionary_, ids);
-          #else
-          board = cv::aruco::Board::create(obj_points, dictionary_, board->ids);
-          #endif
-        }
-
-        boards_.push_back(std::make_pair(name, board));
-      } catch (const YAML::Exception & e) {
-        RCLCPP_ERROR_STREAM(get_logger(), "Failed to load board '" << name << "': " << e.what());
-        continue;
-      }
-      RCLCPP_INFO_STREAM(
-        get_logger(), "Successfully loaded configuration for board '" << name << "'");
+    boards_ = std::move(loaded);
+    for (const auto & b : boards_) {
+      RCLCPP_INFO_STREAM(get_logger(),
+          "Successfully loaded configuration for board '" << b.first << "'");
     }
   }
 
