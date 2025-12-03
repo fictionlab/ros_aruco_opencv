@@ -43,6 +43,7 @@
 
 #include "aruco_opencv/utils.hpp"
 #include "aruco_opencv/parameters.hpp"
+#include "aruco_opencv/detector.hpp"
 
 using rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface;
 
@@ -82,10 +83,10 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   // Aruco
   cv::Mat camera_matrix_;
   cv::Mat distortion_coeffs_;
-  cv::Mat marker_obj_points_;
   cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
+  std::unique_ptr<ArucoDetector> detector_;
 
   // Thread safety
   std::mutex cam_info_mutex_;
@@ -99,8 +100,7 @@ public:
   explicit ArucoTracker(rclcpp::NodeOptions options)
   : LifecycleNode("aruco_tracker", options),
     camera_matrix_(3, 3, CV_64FC1),
-    distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0)),
-    marker_obj_points_(4, 1, CV_32FC3)
+    distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0))
   {
     declare_parameters();
   }
@@ -133,7 +133,10 @@ public:
       load_boards();
     }
 
-    update_marker_obj_points();
+    detector_ = std::make_unique<ArucoDetector>();
+    detector_->setDictionary(dictionary_);
+    detector_->setDetectorParameters(detector_parameters_);
+    detector_->setMarkerSize(marker_size_);
 
     if (publish_tf_) {
       tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
@@ -338,7 +341,7 @@ protected:
     for (auto & param : parameters) {
       if (param.get_name() == "marker_size") {
         marker_size_ = param.as_double();
-        update_marker_obj_points();
+        detector_->setMarkerSize(marker_size_);
       } else if (param.get_name().rfind("aruco", 0) == 0) {
         aruco_param_changed = true;
       } else {
@@ -353,6 +356,7 @@ protected:
 
     if (aruco_param_changed) {
       retrieve_aruco_parameters(*this, detector_parameters_);
+      detector_->setDetectorParameters(detector_parameters_);
     }
   }
 
@@ -430,16 +434,6 @@ protected:
     }
   }
 
-  void update_marker_obj_points()
-  {
-    // set coordinate system in the middle of the marker, with Z pointing out
-    marker_obj_points_.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_size_ / 2.f, marker_size_ / 2.f, 0);
-    marker_obj_points_.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_size_ / 2.f, marker_size_ / 2.f, 0);
-    marker_obj_points_.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(marker_size_ / 2.f, -marker_size_ / 2.f, 0);
-    marker_obj_points_.ptr<cv::Vec3f>(0)[3] =
-      cv::Vec3f(-marker_size_ / 2.f, -marker_size_ / 2.f, 0);
-  }
-
   void callback_camera_info(const sensor_msgs::msg::CameraInfo::ConstSharedPtr cam_info)
   {
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
@@ -510,11 +504,7 @@ protected:
   {
     std::vector<int> marker_ids;
     std::vector<std::vector<cv::Point2f>> marker_corners;
-
-    // TODO(bjsowa): mutex
-    cv::aruco::detectMarkers(
-      cv_ptr->image, dictionary_, marker_corners, marker_ids,
-      detector_parameters_);
+    detector_->detect(cv_ptr->image, marker_ids, marker_corners);
 
     int n_markers = marker_ids.size();
     std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
@@ -526,40 +516,26 @@ protected:
 
     {
       std::lock_guard<std::mutex> guard(cam_info_mutex_);
+      detector_->setCameraIntrinsics(camera_matrix_, distortion_coeffs_);
+      detector_->setBoards(boards_);
+    }
 
-      cv::parallel_for_(
-        cv::Range(0, n_markers), [&](const cv::Range & range) {
-          for (size_t i = range.start; i < range.end; i++) {
-            int id = marker_ids[i];
+    std::vector<MarkerPose> marker_poses;
+    detector_->estimateMarkerPoses(marker_ids, marker_corners, marker_poses, rvec_final,
+        tvec_final);
+    for (int i = 0; i < n_markers; ++i) {
+      detection.markers[i].marker_id = marker_poses[i].marker_id;
+      detection.markers[i].pose = marker_poses[i].pose;
+    }
 
-            cv::solvePnP(
-              marker_obj_points_, marker_corners[i], camera_matrix_, distortion_coeffs_,
-              rvec_final[i], tvec_final[i], false, cv::SOLVEPNP_IPPE_SQUARE);
-
-            detection.markers[i].marker_id = id;
-            detection.markers[i].pose = convert_rvec_tvec(rvec_final[i], tvec_final[i]);
-          }
-        });
-
-      for (const auto & board_desc : boards_) {
-        std::string name = board_desc.first;
-        auto & board = board_desc.second;
-
-        cv::Vec3d rvec, tvec;
-        int valid = cv::aruco::estimatePoseBoard(
-          marker_corners, marker_ids, board, camera_matrix_,
-          distortion_coeffs_, rvec, tvec);
-
-        if (valid > 0) {
-          aruco_opencv_msgs::msg::BoardPose bpose;
-          bpose.board_name = name;
-          bpose.pose = convert_rvec_tvec(rvec, tvec);
-          detection.boards.push_back(bpose);
-          rvec_final.push_back(rvec);
-          tvec_final.push_back(tvec);
-          n_markers++;
-        }
-      }
+    std::vector<BoardPoseOut> board_poses;
+    detector_->estimateBoardPoses(marker_ids, marker_corners, board_poses, rvec_final, tvec_final);
+    for (const auto & bp : board_poses) {
+      aruco_opencv_msgs::msg::BoardPose bpose;
+      bpose.board_name = bp.board_name;
+      bpose.pose = bp.pose;
+      detection.boards.push_back(bpose);
+      n_markers++;
     }
 
     if (transform_poses_ && n_markers > 0) {

@@ -15,6 +15,7 @@ find_package(yaml-cpp REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/aruco_tracker.cpp
+  src/detector.cpp
   src/utils.cpp
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC
