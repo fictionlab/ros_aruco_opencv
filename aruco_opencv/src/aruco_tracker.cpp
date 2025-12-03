@@ -72,7 +72,6 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   rclcpp::Time callback_start_time_;
 
   // Aruco
-  cv::Ptr<cv::aruco::Dictionary> dictionary_;
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
   std::unique_ptr<ArucoDetector> detector_;
 
@@ -106,21 +105,14 @@ public:
       return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
-    #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-    dictionary_ = cv::makePtr<cv::aruco::Dictionary>(cv::aruco::getPredefinedDictionary(
-      ARUCO_DICT_MAP.at(params_.marker_dict)));
-    #else
-    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(params_.marker_dict));
-    #endif
+    detector_ = std::make_unique<ArucoDetector>();
+    detector_->set_dictionary(params_.marker_dict);
+    detector_->set_detector_parameters(detector_parameters_);
+    detector_->set_marker_size(params_.marker_size);
 
     if (!params_.board_path.empty()) {
       load_boards();
     }
-
-    detector_ = std::make_unique<ArucoDetector>();
-    detector_->set_dictionary(dictionary_);
-    detector_->set_detector_parameters(detector_parameters_);
-    detector_->set_marker_size(params_.marker_size);
     detector_->set_boards(boards_);
 
     if (params_.publish_tf) {
@@ -209,8 +201,8 @@ public:
     RCLCPP_INFO(get_logger(), "Cleaning up");
 
     tf_broadcaster_.reset();
-    dictionary_.reset();
     detector_parameters_.reset();
+    detector_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
     boards_.clear();
@@ -230,8 +222,8 @@ public:
     tf_listener_.reset();
     tf_buffer_.reset();
     tf_broadcaster_.reset();
-    dictionary_.reset();
     detector_parameters_.reset();
+    detector_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
     boards_.clear();
@@ -290,7 +282,9 @@ protected:
         "Trying to load board descriptions from " << params_.board_path);
     std::string err;
     std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> loaded;
-    if (!BoardLoader::load_from_file(params_.board_path, dictionary_, loaded, err)) {
+    if (!BoardLoader::load_from_file(params_.board_path, detector_->get_dictionary(), loaded,
+        err))
+    {
       RCLCPP_ERROR_STREAM(get_logger(), err);
       return;
     }

@@ -19,6 +19,7 @@
 // THE SOFTWARE.
 
 #include "aruco_opencv/detector.hpp"
+#include "aruco_opencv/parameters.hpp"
 
 #include <opencv2/calib3d.hpp>
 
@@ -31,9 +32,14 @@ ArucoDetector::ArucoDetector()
   marker_obj_points_(4, 1, CV_32FC3)
 {}
 
-void ArucoDetector::set_dictionary(const cv::Ptr<cv::aruco::Dictionary> & dict)
+void ArucoDetector::set_dictionary(const std::string & dictionary_name)
 {
-  dictionary_ = dict;
+  #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+  dictionary_ = cv::makePtr<cv::aruco::Dictionary>(cv::aruco::getPredefinedDictionary(
+    ARUCO_DICT_MAP.at(dictionary_name)));
+  #else
+  dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(dictionary_name));
+  #endif
 }
 
 void ArucoDetector::set_detector_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params)

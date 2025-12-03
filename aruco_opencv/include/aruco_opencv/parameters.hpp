@@ -169,7 +169,7 @@ inline void declare_aruco_parameters(rclcpp_lifecycle::LifecycleNode & node)
   #endif
 }
 
-void retrieve_aruco_parameters(
+inline void retrieve_aruco_parameters(
   rclcpp_lifecycle::LifecycleNode & node,
   cv::Ptr<cv::aruco::DetectorParameters> & detector_parameters,
   bool log_values = false)

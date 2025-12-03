@@ -51,13 +51,14 @@ class ArucoDetector {
 public:
   ArucoDetector();
 
-  void set_dictionary(const cv::Ptr<cv::aruco::Dictionary> & dict);
+  void set_dictionary(const std::string & dictionary_name);
   void set_detector_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params);
   void set_marker_size(double marker_size);
   void set_camera_intrinsics(const cv::Mat & camera_matrix, const cv::Mat & dist_coeffs);
   void update_camera_info(const sensor_msgs::msg::CameraInfo & cam_info, bool image_is_rectified);
   void get_intrinsics(cv::Mat & camera_matrix, cv::Mat & dist_coeffs) const;
   void set_boards(const std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & boards);
+  cv::Ptr<cv::aruco::Dictionary> get_dictionary() const {return dictionary_;}
 
   void detect(
     const cv::Mat & image,
