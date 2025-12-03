@@ -135,9 +135,9 @@ public:
     }
 
     detector_ = std::make_unique<ArucoDetector>();
-    detector_->setDictionary(dictionary_);
-    detector_->setDetectorParameters(detector_parameters_);
-    detector_->setMarkerSize(marker_size_);
+    detector_->set_dictionary(dictionary_);
+    detector_->set_detector_parameters(detector_parameters_);
+    detector_->set_marker_size(marker_size_);
 
     if (publish_tf_) {
       tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
@@ -342,7 +342,7 @@ protected:
     for (auto & param : parameters) {
       if (param.get_name() == "marker_size") {
         marker_size_ = param.as_double();
-        detector_->setMarkerSize(marker_size_);
+        detector_->set_marker_size(marker_size_);
       } else if (param.get_name().rfind("aruco", 0) == 0) {
         aruco_param_changed = true;
       } else {
@@ -357,7 +357,7 @@ protected:
 
     if (aruco_param_changed) {
       retrieve_aruco_parameters(*this, detector_parameters_);
-      detector_->setDetectorParameters(detector_parameters_);
+      detector_->set_detector_parameters(detector_parameters_);
     }
   }
 
@@ -367,7 +367,7 @@ protected:
         "Trying to load board descriptions from " << board_descriptions_path_);
     std::string err;
     std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> loaded;
-    if (!BoardLoader::loadFromFile(board_descriptions_path_, dictionary_, loaded, err)) {
+    if (!BoardLoader::load_from_file(board_descriptions_path_, dictionary_, loaded, err)) {
       RCLCPP_ERROR_STREAM(get_logger(), err);
       return;
     }
@@ -460,12 +460,12 @@ protected:
 
     {
       std::lock_guard<std::mutex> guard(cam_info_mutex_);
-      detector_->setCameraIntrinsics(camera_matrix_, distortion_coeffs_);
-      detector_->setBoards(boards_);
+      detector_->set_camera_intrinsics(camera_matrix_, distortion_coeffs_);
+      detector_->set_boards(boards_);
     }
 
     std::vector<MarkerPose> marker_poses;
-    detector_->estimateMarkerPoses(marker_ids, marker_corners, marker_poses, rvec_final,
+    detector_->estimate_marker_poses(marker_ids, marker_corners, marker_poses, rvec_final,
         tvec_final);
     for (int i = 0; i < n_markers; ++i) {
       detection.markers[i].marker_id = marker_poses[i].marker_id;
@@ -473,7 +473,8 @@ protected:
     }
 
     std::vector<BoardPoseOut> board_poses;
-    detector_->estimateBoardPoses(marker_ids, marker_corners, board_poses, rvec_final, tvec_final);
+    detector_->estimate_board_poses(marker_ids, marker_corners, board_poses, rvec_final,
+        tvec_final);
     for (const auto & bp : board_poses) {
       aruco_opencv_msgs::msg::BoardPose bpose;
       bpose.board_name = bp.board_name;

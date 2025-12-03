@@ -31,17 +31,17 @@ ArucoDetector::ArucoDetector()
   marker_obj_points_(4, 1, CV_32FC3)
 {}
 
-void ArucoDetector::setDictionary(const cv::Ptr<cv::aruco::Dictionary> & dict)
+void ArucoDetector::set_dictionary(const cv::Ptr<cv::aruco::Dictionary> & dict)
 {
   dictionary_ = dict;
 }
 
-void ArucoDetector::setDetectorParameters(const cv::Ptr<cv::aruco::DetectorParameters> & params)
+void ArucoDetector::set_detector_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params)
 {
   detector_parameters_ = params;
 }
 
-void ArucoDetector::setMarkerSize(double marker_size)
+void ArucoDetector::set_marker_size(double marker_size)
 {
   marker_obj_points_.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_size / 2.f, marker_size / 2.f, 0);
   marker_obj_points_.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_size / 2.f, marker_size / 2.f, 0);
@@ -49,14 +49,16 @@ void ArucoDetector::setMarkerSize(double marker_size)
   marker_obj_points_.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-marker_size / 2.f, -marker_size / 2.f, 0);
 }
 
-void ArucoDetector::setCameraIntrinsics(const cv::Mat & camera_matrix, const cv::Mat & dist_coeffs)
+void ArucoDetector::set_camera_intrinsics(
+  const cv::Mat & camera_matrix,
+  const cv::Mat & dist_coeffs)
 {
   std::lock_guard<std::mutex> lk(intrinsics_mutex_);
   camera_matrix.copyTo(camera_matrix_);
   dist_coeffs.copyTo(distortion_coeffs_);
 }
 
-void ArucoDetector::setBoards(
+void ArucoDetector::set_boards(
   const std::vector<std::pair<std::string,
   cv::Ptr<cv::aruco::Board>>> & boards)
 {
@@ -71,7 +73,7 @@ void ArucoDetector::detect(
   cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, detector_parameters_);
 }
 
-void ArucoDetector::estimateMarkerPoses(
+void ArucoDetector::estimate_marker_poses(
   const std::vector<int> & marker_ids,
   const std::vector<std::vector<cv::Point2f>> & marker_corners,
   std::vector<MarkerPose> & marker_poses,
@@ -100,7 +102,7 @@ void ArucoDetector::estimateMarkerPoses(
   });
 }
 
-void ArucoDetector::estimateBoardPoses(
+void ArucoDetector::estimate_board_poses(
   const std::vector<int> & marker_ids,
   const std::vector<std::vector<cv::Point2f>> & marker_corners,
   std::vector<BoardPoseOut> & board_poses,

@@ -50,25 +50,25 @@ class ArucoDetector {
 public:
   ArucoDetector();
 
-  void setDictionary(const cv::Ptr<cv::aruco::Dictionary> & dict);
-  void setDetectorParameters(const cv::Ptr<cv::aruco::DetectorParameters> & params);
-  void setMarkerSize(double marker_size);
-  void setCameraIntrinsics(const cv::Mat & camera_matrix, const cv::Mat & dist_coeffs);
-  void setBoards(const std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & boards);
+  void set_dictionary(const cv::Ptr<cv::aruco::Dictionary> & dict);
+  void set_detector_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params);
+  void set_marker_size(double marker_size);
+  void set_camera_intrinsics(const cv::Mat & camera_matrix, const cv::Mat & dist_coeffs);
+  void set_boards(const std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & boards);
 
   void detect(
     const cv::Mat & image,
     std::vector<int> & marker_ids,
     std::vector<std::vector<cv::Point2f>> & marker_corners) const;
 
-  void estimateMarkerPoses(
+  void estimate_marker_poses(
     const std::vector<int> & marker_ids,
     const std::vector<std::vector<cv::Point2f>> & marker_corners,
     std::vector<MarkerPose> & marker_poses,
     std::vector<cv::Vec3d> & rvecs,
     std::vector<cv::Vec3d> & tvecs) const;
 
-  void estimateBoardPoses(
+  void estimate_board_poses(
     const std::vector<int> & marker_ids,
     const std::vector<std::vector<cv::Point2f>> & marker_corners,
     std::vector<BoardPoseOut> & board_poses,

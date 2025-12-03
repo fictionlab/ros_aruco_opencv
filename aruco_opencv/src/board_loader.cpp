@@ -26,7 +26,7 @@
 namespace aruco_opencv
 {
 
-static bool parseBoard(const YAML::Node & desc, BoardDescription & out, std::string & err)
+static bool parse_board(const YAML::Node & desc, BoardDescription & out, std::string & err)
 {
   try {
     out.name = desc["name"].as<std::string>();
@@ -43,7 +43,7 @@ static bool parseBoard(const YAML::Node & desc, BoardDescription & out, std::str
   }
 }
 
-static cv::Ptr<cv::aruco::Board> makeGridBoard(
+static cv::Ptr<cv::aruco::Board> make_grid_board(
   const BoardDescription & bd,
   const cv::Ptr<cv::aruco::Dictionary> & dict)
 {
@@ -81,7 +81,7 @@ static cv::Ptr<cv::aruco::Board> makeGridBoard(
 #endif
 }
 
-bool BoardLoader::loadFromFile(
+bool BoardLoader::load_from_file(
   const std::string & path,
   const cv::Ptr<cv::aruco::Dictionary> & dictionary,
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & out_boards,
@@ -104,11 +104,11 @@ bool BoardLoader::loadFromFile(
   for (const YAML::Node & desc : descriptions) {
     BoardDescription bd;
     std::string perr;
-    if (!parseBoard(desc, bd, perr)) {
+    if (!parse_board(desc, bd, perr)) {
       error_message = std::string("Failed to parse board: ") + perr;
       return false;
     }
-    auto board = makeGridBoard(bd, dictionary);
+    auto board = make_grid_board(bd, dictionary);
     out_boards.push_back(std::make_pair(bd.name, board));
   }
   return true;

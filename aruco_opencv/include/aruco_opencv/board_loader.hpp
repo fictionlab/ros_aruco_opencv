@@ -42,7 +42,7 @@ struct BoardDescription
 
 class BoardLoader {
 public:
-  static bool loadFromFile(
+  static bool load_from_file(
     const std::string & path,
     const cv::Ptr<cv::aruco::Dictionary> & dictionary,
     std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & out_boards,
