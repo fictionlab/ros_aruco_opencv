@@ -54,19 +54,9 @@ namespace aruco_opencv
 class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
 {
   // Parameters
-  std::string cam_base_topic_;
-  bool image_is_rectified_;
-  std::string output_frame_;
-  std::string marker_dict_;
+  CoreParams params_;
+  cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   bool transform_poses_;
-  bool publish_tf_;
-  double marker_size_;
-  bool image_sub_compressed_;
-  int image_sub_qos_reliability_;
-  int image_sub_qos_durability_;
-  int image_sub_qos_depth_;
-  std::string image_transport_;
-  std::string board_descriptions_path_;
 
   // ROS
   OnSetParametersCallbackHandle::SharedPtr on_set_parameter_callback_handle_;
@@ -84,7 +74,6 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   // Aruco
   cv::Mat camera_matrix_;
   cv::Mat distortion_coeffs_;
-  cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
   std::unique_ptr<ArucoDetector> detector_;
@@ -118,28 +107,28 @@ public:
 
     retrieve_parameters();
 
-    if (ARUCO_DICT_MAP.find(marker_dict_) == ARUCO_DICT_MAP.end()) {
-      RCLCPP_ERROR_STREAM(get_logger(), "Unsupported dictionary name: " << marker_dict_);
+    if (ARUCO_DICT_MAP.find(params_.marker_dict) == ARUCO_DICT_MAP.end()) {
+      RCLCPP_ERROR_STREAM(get_logger(), "Unsupported dictionary name: " << params_.marker_dict);
       return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
     #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
     dictionary_ = cv::makePtr<cv::aruco::Dictionary>(cv::aruco::getPredefinedDictionary(
-        ARUCO_DICT_MAP.at(marker_dict_)));
+      ARUCO_DICT_MAP.at(params_.marker_dict)));
     #else
-    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
+    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(params_.marker_dict));
     #endif
 
-    if (!board_descriptions_path_.empty()) {
+    if (!params_.board_path.empty()) {
       load_boards();
     }
 
     detector_ = std::make_unique<ArucoDetector>();
     detector_->set_dictionary(dictionary_);
     detector_->set_detector_parameters(detector_parameters_);
-    detector_->set_marker_size(marker_size_);
+    detector_->set_marker_size(params_.marker_size);
 
-    if (publish_tf_) {
+    if (params_.publish_tf) {
       tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
     }
 
@@ -174,7 +163,7 @@ public:
     cam_info_retrieved_ = false;
 
     std::string image_topic = rclcpp::expand_topic_or_service_name(
-      cam_base_topic_, this->get_name(), this->get_namespace());
+      params_.cam_base_topic, this->get_name(), this->get_namespace());
     std::string cam_info_topic = image_transport::getCameraInfoTopic(image_topic);
 
     cam_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
@@ -183,13 +172,13 @@ public:
 
     rmw_qos_profile_t image_sub_qos = rmw_qos_profile_default;
     image_sub_qos.reliability =
-      static_cast<rmw_qos_reliability_policy_t>(image_sub_qos_reliability_);
-    image_sub_qos.durability = static_cast<rmw_qos_durability_policy_t>(image_sub_qos_durability_);
-    image_sub_qos.depth = image_sub_qos_depth_;
+      static_cast<rmw_qos_reliability_policy_t>(params_.qos_rel);
+    image_sub_qos.durability = static_cast<rmw_qos_durability_policy_t>(params_.qos_dur);
+    image_sub_qos.depth = params_.qos_depth;
 
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(image_sub_qos), image_sub_qos);
 
-    if (image_sub_compressed_) {
+    if (params_.image_sub_compressed) {
       compressed_img_sub_ = create_subscription<sensor_msgs::msg::CompressedImage>(
         image_topic + "/compressed", qos, std::bind(
           &ArucoTracker::callback_compressed_image, this, std::placeholders::_1));
@@ -258,59 +247,26 @@ public:
 protected:
   void declare_parameters()
   {
-    declare_param(*this, "cam_base_topic", "camera/image_raw");
-    declare_param(*this, "image_is_rectified", false, false);
-    declare_param(*this, "output_frame", "");
-    declare_param(*this, "marker_dict", "4X4_50");
-    declare_param(*this, "image_sub_compressed", false);
-    declare_param(
-      *this, "image_sub_qos.reliability",
-      static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
-    declare_param(
-      *this, "image_sub_qos.durability",
-      static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
-    declare_param(*this, "image_sub_qos.depth", 1);
-    declare_param(*this, "publish_tf", true, true);
-    declare_param(*this, "marker_size", 0.15, true);
-    declare_param(*this, "board_descriptions_path", "");
-
-    declare_aruco_parameters(*this);
+    declare_all_parameters(*this);
   }
 
   void retrieve_parameters()
   {
-    get_param(*this, "cam_base_topic", cam_base_topic_, "Camera Base Topic: ");
+    params_ = retrieve_core_parameters(*this);
 
-    get_parameter("image_is_rectified", image_is_rectified_);
     RCLCPP_INFO_STREAM(
-      get_logger(), "Assume images are rectified: " << (image_is_rectified_ ? "YES" : "NO"));
-
-    get_parameter("output_frame", output_frame_);
-    if (output_frame_.empty()) {
+      get_logger(), "Assume images are rectified: " << (params_.image_is_rectified ? "YES" : "NO"));
+    if (params_.output_frame.empty()) {
       RCLCPP_INFO(get_logger(), "Marker detections will be published in the camera frame");
       transform_poses_ = false;
     } else {
       RCLCPP_INFO(
         get_logger(), "Marker detections will be transformed to \'%s\' frame",
-        output_frame_.c_str());
+        params_.output_frame.c_str());
       transform_poses_ = true;
     }
-
-    get_param(*this, "marker_dict", marker_dict_, "Marker Dictionary name: ");
-
-    get_parameter("image_sub_compressed", image_sub_compressed_);
-
-    get_parameter("image_sub_qos.reliability", image_sub_qos_reliability_);
-    get_parameter("image_sub_qos.durability", image_sub_qos_durability_);
-    get_parameter("image_sub_qos.depth", image_sub_qos_depth_);
-
-    get_parameter("publish_tf", publish_tf_);
-    RCLCPP_INFO_STREAM(get_logger(), "TF publishing is " << (publish_tf_ ? "enabled" : "disabled"));
-
-    get_param(*this, "marker_size", marker_size_, "Marker size: ");
-
-    get_parameter("board_descriptions_path", board_descriptions_path_);
-
+    RCLCPP_INFO_STREAM(get_logger(),
+        "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
     retrieve_aruco_parameters(*this, detector_parameters_, true);
   }
@@ -318,56 +274,28 @@ protected:
   rcl_interfaces::msg::SetParametersResult callback_on_set_parameters(
     const std::vector<rclcpp::Parameter> & parameters)
   {
-    rcl_interfaces::msg::SetParametersResult result;
-    result.successful = true;
-
-    // Validate parameters
-    for (auto & param : parameters) {
-      if (param.get_name() == "marker_size") {
-        if (param.as_double() <= 0.0) {
-          result.successful = false;
-          result.reason = param.get_name() + " must be positive";
-          RCLCPP_ERROR_STREAM(get_logger(), result.reason);
-          return result;
-        }
-      }
+    auto result = validate_core_parameters(parameters);
+    if (!result.successful) {
+      RCLCPP_ERROR_STREAM(get_logger(), result.reason);
     }
-
     return result;
   }
 
   void callback_post_set_parameters(const std::vector<rclcpp::Parameter> & parameters)
   {
-    bool aruco_param_changed = false;
-    for (auto & param : parameters) {
-      if (param.get_name() == "marker_size") {
-        marker_size_ = param.as_double();
-        detector_->set_marker_size(marker_size_);
-      } else if (param.get_name().rfind("aruco", 0) == 0) {
-        aruco_param_changed = true;
-      } else {
-        // Unknown parameter, ignore
-        continue;
-      }
+    update_dynamic_parameters(*this, parameters, params_, detector_parameters_);
 
-      RCLCPP_INFO_STREAM(
-        get_logger(),
-        "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
-    }
-
-    if (aruco_param_changed) {
-      retrieve_aruco_parameters(*this, detector_parameters_);
-      detector_->set_detector_parameters(detector_parameters_);
-    }
+    detector_->set_marker_size(params_.marker_size);
+    detector_->set_detector_parameters(detector_parameters_);
   }
 
   void load_boards()
   {
     RCLCPP_INFO_STREAM(get_logger(),
-        "Trying to load board descriptions from " << board_descriptions_path_);
+        "Trying to load board descriptions from " << params_.board_path);
     std::string err;
     std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> loaded;
-    if (!BoardLoader::load_from_file(board_descriptions_path_, dictionary_, loaded, err)) {
+    if (!BoardLoader::load_from_file(params_.board_path, dictionary_, loaded, err)) {
       RCLCPP_ERROR_STREAM(get_logger(), err);
       return;
     }
@@ -382,7 +310,7 @@ protected:
   {
     std::lock_guard<std::mutex> guard(cam_info_mutex_);
 
-    if (image_is_rectified_) {
+    if (params_.image_is_rectified) {
       for (int i = 0; i < 9; ++i) {
         camera_matrix_.at<double>(i / 3, i % 3) = cam_info->p[i + i / 3];
       }
@@ -484,12 +412,12 @@ protected:
     }
 
     if (transform_poses_ && n_markers > 0) {
-      detection.header.frame_id = output_frame_;
+      detection.header.frame_id = params_.output_frame;
       geometry_msgs::msg::TransformStamped cam_to_output;
       // Retrieve camera -> output_frame transform
       try {
         cam_to_output = tf_buffer_->lookupTransform(
-          output_frame_, cv_ptr->header.frame_id,
+          params_.output_frame, cv_ptr->header.frame_id,
           cv_ptr->header.stamp, rclcpp::Duration::from_seconds(1.0));
       } catch (tf2::TransformException & ex) {
         RCLCPP_ERROR_STREAM(get_logger(), ex.what());
@@ -503,7 +431,7 @@ protected:
       }
     }
 
-    if (publish_tf_ && n_markers > 0) {
+    if (params_.publish_tf && n_markers > 0) {
       std::vector<geometry_msgs::msg::TransformStamped> transforms;
       for (auto & marker_pose : detection.markers) {
         geometry_msgs::msg::TransformStamped transform;
