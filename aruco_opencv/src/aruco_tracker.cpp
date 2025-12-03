@@ -1,4 +1,4 @@
-// Copyright 2022 Kell Ideas sp. z o.o.
+// Copyright 2025 Fictionlab sp. z o.o.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
