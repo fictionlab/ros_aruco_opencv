@@ -96,6 +96,12 @@ void ArucoDetector::set_boards(
   boards_ = boards;
 }
 
+cv::Ptr<cv::aruco::Dictionary> ArucoDetector::get_dictionary()
+{
+  std::lock_guard<std::mutex> lk(intrinsics_mutex_);
+  return dictionary_;
+}
+
 void ArucoDetector::detect(
   const cv::Mat & image,
   std::vector<int> & marker_ids,

@@ -42,7 +42,7 @@ struct CoreParams
   int qos_depth;
   bool publish_tf;
   double marker_size;
-  std::string board_path;
+  std::string board_descriptions_path;
 };
 
 template<class NodeT, typename T>
@@ -352,7 +352,7 @@ inline CoreParams retrieve_core_parameters(rclcpp_lifecycle::LifecycleNode & nod
   node.get_parameter("image_sub_qos.depth", out.qos_depth);
   node.get_parameter("publish_tf", out.publish_tf);
   get_param(node, "marker_size", out.marker_size, "Marker size: ");
-  node.get_parameter("board_descriptions_path", out.board_path);
+  node.get_parameter("board_descriptions_path", out.board_descriptions_path);
   return out;
 }
 
@@ -383,13 +383,6 @@ inline void update_dynamic_parameters(
   CoreParams & params,
   cv::Ptr<cv::aruco::DetectorParameters> & detector_parameters)
 {
-  for (const auto & param : parameters) {
-    if (param.get_name() == "marker_size") {
-      RCLCPP_INFO_STREAM(
-        node.get_logger(), "Updating marker_size to " << param.as_double());
-    }
-  }
-
   bool aruco_param_changed = false;
   for (auto & param : parameters) {
     if (param.get_name() == "marker_size") {
@@ -397,7 +390,7 @@ inline void update_dynamic_parameters(
     } else if (param.get_name().rfind("aruco", 0) == 0) {
       aruco_param_changed = true;
     } else {
-        // Unknown parameter, ignore
+      // Unknown parameter, ignore
       continue;
     }
 

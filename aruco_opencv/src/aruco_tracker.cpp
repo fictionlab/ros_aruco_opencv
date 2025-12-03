@@ -110,7 +110,7 @@ public:
     detector_->set_detector_parameters(detector_parameters_);
     detector_->set_marker_size(params_.marker_size);
 
-    if (!params_.board_path.empty()) {
+    if (!params_.board_descriptions_path.empty()) {
       load_boards();
     }
     detector_->set_boards(boards_);
@@ -279,11 +279,11 @@ protected:
   void load_boards()
   {
     RCLCPP_INFO_STREAM(get_logger(),
-        "Trying to load board descriptions from " << params_.board_path);
+        "Trying to load board descriptions from " << params_.board_descriptions_path);
     std::string err;
     std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> loaded;
-    if (!BoardLoader::load_from_file(params_.board_path, detector_->get_dictionary(), loaded,
-        err))
+    if (!BoardLoader::load_from_file(params_.board_descriptions_path, detector_->get_dictionary(),
+        loaded, err))
     {
       RCLCPP_ERROR_STREAM(get_logger(), err);
       return;
