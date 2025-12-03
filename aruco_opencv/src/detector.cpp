@@ -58,6 +58,31 @@ void ArucoDetector::set_camera_intrinsics(
   dist_coeffs.copyTo(distortion_coeffs_);
 }
 
+void ArucoDetector::update_camera_info(
+  const sensor_msgs::msg::CameraInfo & cam_info,
+  bool image_is_rectified)
+{
+  std::lock_guard<std::mutex> lk(intrinsics_mutex_);
+  if (image_is_rectified) {
+    for (int i = 0; i < 9; ++i) {
+      camera_matrix_.at<double>(i / 3, i % 3) = cam_info.p[i + i / 3];
+    }
+    // For rectified images, distortion is assumed zero or already handled; keep current or zero.
+  } else {
+    for (int i = 0; i < 9; ++i) {
+      camera_matrix_.at<double>(i / 3, i % 3) = cam_info.k[i];
+    }
+    distortion_coeffs_ = cv::Mat(cam_info.d, true);
+  }
+}
+
+void ArucoDetector::get_intrinsics(cv::Mat & camera_matrix, cv::Mat & dist_coeffs) const
+{
+  std::lock_guard<std::mutex> lk(intrinsics_mutex_);
+  camera_matrix_.copyTo(camera_matrix);
+  distortion_coeffs_.copyTo(dist_coeffs);
+}
+
 void ArucoDetector::set_boards(
   const std::vector<std::pair<std::string,
   cv::Ptr<cv::aruco::Board>>> & boards)

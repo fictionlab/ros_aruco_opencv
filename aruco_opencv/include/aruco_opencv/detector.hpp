@@ -28,6 +28,7 @@
 #include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
 
+#include "sensor_msgs/msg/camera_info.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "aruco_opencv/utils.hpp"
 
@@ -54,6 +55,8 @@ public:
   void set_detector_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params);
   void set_marker_size(double marker_size);
   void set_camera_intrinsics(const cv::Mat & camera_matrix, const cv::Mat & dist_coeffs);
+  void update_camera_info(const sensor_msgs::msg::CameraInfo & cam_info, bool image_is_rectified);
+  void get_intrinsics(cv::Mat & camera_matrix, cv::Mat & dist_coeffs) const;
   void set_boards(const std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & boards);
 
   void detect(

@@ -72,14 +72,10 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   rclcpp::Time callback_start_time_;
 
   // Aruco
-  cv::Mat camera_matrix_;
-  cv::Mat distortion_coeffs_;
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
   std::unique_ptr<ArucoDetector> detector_;
 
-  // Thread safety
-  std::mutex cam_info_mutex_;
 
   // Tf2
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -88,9 +84,7 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
 
 public:
   explicit ArucoTracker(rclcpp::NodeOptions options)
-  : LifecycleNode("aruco_tracker", options),
-    camera_matrix_(3, 3, CV_64FC1),
-    distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0))
+  : LifecycleNode("aruco_tracker", options)
   {
     declare_parameters();
   }
@@ -127,6 +121,7 @@ public:
     detector_->set_dictionary(dictionary_);
     detector_->set_detector_parameters(detector_parameters_);
     detector_->set_marker_size(params_.marker_size);
+    detector_->set_boards(boards_);
 
     if (params_.publish_tf) {
       tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
@@ -308,18 +303,7 @@ protected:
 
   void callback_camera_info(const sensor_msgs::msg::CameraInfo::ConstSharedPtr cam_info)
   {
-    std::lock_guard<std::mutex> guard(cam_info_mutex_);
-
-    if (params_.image_is_rectified) {
-      for (int i = 0; i < 9; ++i) {
-        camera_matrix_.at<double>(i / 3, i % 3) = cam_info->p[i + i / 3];
-      }
-    } else {
-      for (int i = 0; i < 9; ++i) {
-        camera_matrix_.at<double>(i / 3, i % 3) = cam_info->k[i];
-      }
-      distortion_coeffs_ = cv::Mat(cam_info->d, true);
-    }
+    detector_->update_camera_info(*cam_info, params_.image_is_rectified);
 
     if (!cam_info_retrieved_) {
       RCLCPP_INFO(get_logger(), "First camera info retrieved.");
@@ -385,12 +369,6 @@ protected:
     detection.header.frame_id = cv_ptr->header.frame_id;
     detection.header.stamp = cv_ptr->header.stamp;
     detection.markers.resize(n_markers);
-
-    {
-      std::lock_guard<std::mutex> guard(cam_info_mutex_);
-      detector_->set_camera_intrinsics(camera_matrix_, distortion_coeffs_);
-      detector_->set_boards(boards_);
-    }
 
     std::vector<MarkerPose> marker_poses;
     detector_->estimate_marker_poses(marker_ids, marker_corners, marker_poses, rvec_final,
@@ -465,10 +443,11 @@ protected:
       debug_cv_ptr->image = cv_ptr->image.clone();
       cv::aruco::drawDetectedMarkers(debug_cv_ptr->image, marker_corners, marker_ids);
       {
-        std::lock_guard<std::mutex> guard(cam_info_mutex_);
+        cv::Mat camera_matrix, distortion_coeffs;
+        detector_->get_intrinsics(camera_matrix, distortion_coeffs);
         for (size_t i = 0; i < n_markers; i++) {
           cv::drawFrameAxes(
-            debug_cv_ptr->image, camera_matrix_, distortion_coeffs_, rvec_final[i],
+            debug_cv_ptr->image, camera_matrix, distortion_coeffs, rvec_final[i],
             tvec_final[i], 0.2, 3);
         }
       }
