@@ -56,13 +56,12 @@ enum class PoseSelectorStrategy
 struct PoseSelectorConfig
 {
   PoseSelectorStrategy strategy = PoseSelectorStrategy::REPROJECTION_ERROR;
-  bool debug = false;
 };
 
 struct DetectorParams
 {
   double marker_size;
-  PoseSelectorConfig pose_selector;
+  PoseSelectorConfig pose_selector{};
 };
 
 template<class NodeT, typename T>
