@@ -122,7 +122,9 @@ static geometry_msgs::msg::Pose select_pose_from_candidates(
   const std::vector<double> & reproj_errors,
   const PoseSelectorConfig & selector_config)
 {
-  if (rvecs.empty() || tvecs.empty() || reproj_errors.empty()) {
+  if (rvecs.empty() || tvecs.empty() || reproj_errors.empty() || (
+      rvecs.size() != tvecs.size()) || (rvecs.size() != reproj_errors.size()))
+  {
     return geometry_msgs::msg::Pose();
   }
 
@@ -183,10 +185,6 @@ void ArucoDetector::estimate_marker_poses(
         cv::solvePnPGeneric(marker_obj_points_, marker_corners[i], camera_matrix, distortion_coeffs,
           rvecs_tmp, tvecs_tmp, false, cv::SOLVEPNP_IPPE_SQUARE, cv::noArray(), cv::noArray(),
           reproj_errors);
-
-        if (rvecs_tmp.empty() || tvecs_tmp.empty()) {
-          continue;
-        }
 
         marker_poses[i].marker_id = marker_ids[i];
         marker_poses[i].pose = select_pose_from_candidates(
