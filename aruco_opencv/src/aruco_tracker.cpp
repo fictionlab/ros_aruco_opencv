@@ -255,6 +255,10 @@ protected:
     }
     RCLCPP_INFO_STREAM(get_logger(),
         "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
+    RCLCPP_INFO_STREAM(get_logger(), "Marker size: " << detector_params_.marker_size << " meters");
+    RCLCPP_INFO_STREAM(get_logger(),
+        "Pose selector strategy: " <<
+        pose_selector_strategy_to_string(detector_params_.pose_selector.strategy));
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
 
     retrieve_aruco_parameters(*this, aruco_parameters_, true);

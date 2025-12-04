@@ -24,9 +24,11 @@
 #include <string>
 #include <vector>
 
+#include <opencv2/aruco.hpp>
+#include <opencv2/calib3d.hpp>
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include <opencv2/calib3d.hpp>
 
 namespace aruco_opencv
 {

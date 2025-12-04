@@ -29,6 +29,8 @@
 #include "geometry_msgs/msg/pose.hpp"
 #include "cv_bridge/cv_bridge.hpp"
 
+#include "aruco_opencv/parameters.hpp"
+
 namespace aruco_opencv
 {
 
@@ -41,5 +43,7 @@ using ArucoDictType = cv::aruco::PREDEFINED_DICTIONARY_NAME;
 #endif
 
 extern const std::unordered_map<std::string, ArucoDictType> ARUCO_DICT_MAP;
+
+std::string pose_selector_strategy_to_string(PoseSelectorStrategy strategy);
 
 }  // namespace aruco_opencv

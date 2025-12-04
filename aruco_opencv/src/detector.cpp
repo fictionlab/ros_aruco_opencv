@@ -116,6 +116,47 @@ void ArucoDetector::detect(
   cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, aruco_parameters_);
 }
 
+geometry_msgs::msg::Pose select_pose_from_candidates(
+  const std::vector<cv::Vec3d> & rvecs,
+  const std::vector<cv::Vec3d> & tvecs,
+  const std::vector<double> & reproj_errors,
+  const PoseSelectorConfig & selector_config)
+{
+  if (rvecs.empty() || tvecs.empty() || reproj_errors.empty()) {
+    return geometry_msgs::msg::Pose();
+  }
+
+  size_t best_index = 0;
+
+  if (selector_config.strategy == PoseSelectorStrategy::REPROJECTION_ERROR) {
+    double min_reproj_error = reproj_errors[0];
+    for (size_t i = 1; i < reproj_errors.size(); ++i) {
+      if (reproj_errors[i] < min_reproj_error) {
+        min_reproj_error = reproj_errors[i];
+        best_index = i;
+      }
+    }
+  } else if (selector_config.strategy == PoseSelectorStrategy::PLANE_NORMAL) {
+    // Select pose with the Z axis most aligned with camera Z axis (smallest angle)
+    double max_cosine = -1.0;
+    for (size_t i = 0; i < rvecs.size(); ++i) {
+      cv::Mat R;
+      cv::Rodrigues(rvecs[i], R);
+      cv::Vec3d z_axis = R.col(2);
+      double cosine = z_axis[2] / cv::norm(z_axis);
+      if (cosine > max_cosine) {
+        max_cosine = cosine;
+        best_index = i;
+      }
+    }
+  } else {
+    // Default to first pose if strategy is unrecognized
+    best_index = 0;
+  }
+
+  return convert_rvec_tvec(rvecs[best_index], tvecs[best_index]);
+}
+
 void ArucoDetector::estimate_marker_poses(
   const std::vector<int> & marker_ids,
   const std::vector<std::vector<cv::Point2f>> & marker_corners,
@@ -137,10 +178,19 @@ void ArucoDetector::estimate_marker_poses(
 
   cv::parallel_for_(cv::Range(0, n), [&](const cv::Range & range) {
       for (int i = range.start; i < range.end; ++i) {
-        cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix, distortion_coeffs,
-                   rvecs[i], tvecs[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+        std::vector<cv::Vec3d> rvecs_tmp, tvecs_tmp;
+        std::vector<double> reproj_errors;
+        cv::solvePnPGeneric(marker_obj_points_, marker_corners[i], camera_matrix, distortion_coeffs,
+          rvecs_tmp, tvecs_tmp, false, cv::SOLVEPNP_IPPE_SQUARE, cv::noArray(), cv::noArray(),
+          reproj_errors);
+
+        if (rvecs_tmp.empty() || tvecs_tmp.empty()) {
+          continue;
+        }
+
         marker_poses[i].marker_id = marker_ids[i];
-        marker_poses[i].pose = convert_rvec_tvec(rvecs[i], tvecs[i]);
+        marker_poses[i].pose = select_pose_from_candidates(
+          rvecs_tmp, tvecs_tmp, reproj_errors, params_.pose_selector);
       }
   });
 }
