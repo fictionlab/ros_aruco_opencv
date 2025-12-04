@@ -172,10 +172,12 @@ void ArucoDetector::estimate_marker_poses(
   marker_poses.resize(n);
 
   cv::Mat camera_matrix, distortion_coeffs;
+  PoseSelectorConfig selector_config;
   {
     std::lock_guard<std::mutex> lk(intrinsics_mutex_);
     camera_matrix_.copyTo(camera_matrix);
     distortion_coeffs_.copyTo(distortion_coeffs);
+    selector_config = params_.pose_selector;
   }
 
   cv::parallel_for_(cv::Range(0, n), [&](const cv::Range & range) {
@@ -188,7 +190,7 @@ void ArucoDetector::estimate_marker_poses(
 
         marker_poses[i].marker_id = marker_ids[i];
         marker_poses[i].pose = select_pose_from_candidates(
-          rvecs_tmp, tvecs_tmp, reproj_errors, params_.pose_selector);
+          rvecs_tmp, tvecs_tmp, reproj_errors, selector_config);
       }
   });
 }
