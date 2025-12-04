@@ -138,7 +138,7 @@ geometry_msgs::msg::Pose ArucoDetector::select_pose_from_candidates(
     }
 
     double min_reproj_error = reproj_errors[0];
-    for (size_t i = 1; i < reproj_errors.size(); ++i) {
+    for (size_t i = 0; i < reproj_errors.size(); ++i) {
       if (selector_config.debug) {
         RCLCPP_INFO(logger_, "Candidate %zu: rotation vec = [%f, %f, %f], reproj error = %f",
           i, rvecs[i][0], rvecs[i][1], rvecs[i][2], reproj_errors[i]);
@@ -155,20 +155,20 @@ geometry_msgs::msg::Pose ArucoDetector::select_pose_from_candidates(
     }
 
     // Select pose with the Z axis most aligned with camera Z axis (smallest angle)
-    double max_cosine = -1.0;
+    double min_cosine = 1.0;
     for (size_t i = 0; i < rvecs.size(); ++i) {
       cv::Mat R;
       cv::Rodrigues(rvecs[i], R);
       cv::Vec3d z_axis = R.col(2);
-      double cosine = z_axis[2] / cv::norm(z_axis);
+      double cosine = z_axis[2];
 
       if (selector_config.debug) {
         RCLCPP_INFO(logger_, "Candidate %zu: rotation vec = [%f, %f, %f], cosine with Z = %f",
           i, rvecs[i][0], rvecs[i][1], rvecs[i][2], cosine);
       }
 
-      if (cosine > max_cosine) {
-        max_cosine = cosine;
+      if (cosine < min_cosine) {
+        min_cosine = cosine;
         best_index = i;
       }
     }
