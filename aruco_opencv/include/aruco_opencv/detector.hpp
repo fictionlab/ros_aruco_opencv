@@ -31,6 +31,7 @@
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "aruco_opencv/utils.hpp"
+#include "aruco_opencv/parameters.hpp"
 
 namespace aruco_opencv
 {
@@ -52,8 +53,8 @@ public:
   ArucoDetector();
 
   void set_dictionary(const std::string & dictionary_name);
-  void set_detector_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params);
-  void set_marker_size(double marker_size);
+  void set_detector_parameters(const DetectorParams & params);
+  void set_aruco_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params);
   void set_camera_intrinsics(const cv::Mat & camera_matrix, const cv::Mat & dist_coeffs);
   void update_camera_info(const sensor_msgs::msg::CameraInfo & cam_info, bool image_is_rectified);
   void get_intrinsics(cv::Mat & camera_matrix, cv::Mat & dist_coeffs) const;
@@ -80,12 +81,16 @@ public:
     std::vector<cv::Vec3d> & tvecs) const;
 
 private:
+  void update_marker_object_points(double marker_size);
+
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
-  cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
+  cv::Ptr<cv::aruco::DetectorParameters> aruco_parameters_;
   cv::Mat camera_matrix_;
   cv::Mat distortion_coeffs_;
   cv::Mat marker_obj_points_;
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
+
+  DetectorParams params_{};
 
   mutable std::mutex intrinsics_mutex_;
 };

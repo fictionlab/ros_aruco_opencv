@@ -42,12 +42,18 @@ void ArucoDetector::set_dictionary(const std::string & dictionary_name)
   #endif
 }
 
-void ArucoDetector::set_detector_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params)
+void ArucoDetector::set_detector_parameters(const DetectorParams & params)
 {
-  detector_parameters_ = params;
+  params_ = params;
+  this->update_marker_object_points(params_.marker_size);
 }
 
-void ArucoDetector::set_marker_size(double marker_size)
+void ArucoDetector::set_aruco_parameters(const cv::Ptr<cv::aruco::DetectorParameters> & params)
+{
+  aruco_parameters_ = params;
+}
+
+void ArucoDetector::update_marker_object_points(double marker_size)
 {
   marker_obj_points_.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_size / 2.f, marker_size / 2.f, 0);
   marker_obj_points_.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_size / 2.f, marker_size / 2.f, 0);
@@ -107,7 +113,7 @@ void ArucoDetector::detect(
   std::vector<int> & marker_ids,
   std::vector<std::vector<cv::Point2f>> & marker_corners) const
 {
-  cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, detector_parameters_);
+  cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, aruco_parameters_);
 }
 
 void ArucoDetector::estimate_marker_poses(

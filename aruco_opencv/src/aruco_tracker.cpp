@@ -55,7 +55,8 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
 {
   // Parameters
   CoreParams params_;
-  cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
+  DetectorParams detector_params_;
+  cv::Ptr<cv::aruco::DetectorParameters> aruco_parameters_;
   bool transform_poses_;
 
   // ROS
@@ -75,7 +76,6 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
   std::unique_ptr<ArucoDetector> detector_;
 
-
   // Tf2
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -93,9 +93,9 @@ public:
     RCLCPP_INFO(get_logger(), "Configuring");
 
     #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-    detector_parameters_ = cv::makePtr<cv::aruco::DetectorParameters>();
+    aruco_parameters_ = cv::makePtr<cv::aruco::DetectorParameters>();
     #else
-    detector_parameters_ = cv::aruco::DetectorParameters::create();
+    aruco_parameters_ = cv::aruco::DetectorParameters::create();
     #endif
 
     retrieve_parameters();
@@ -107,8 +107,8 @@ public:
 
     detector_ = std::make_unique<ArucoDetector>();
     detector_->set_dictionary(params_.marker_dict);
-    detector_->set_detector_parameters(detector_parameters_);
-    detector_->set_marker_size(params_.marker_size);
+    detector_->set_detector_parameters(detector_params_);
+    detector_->set_aruco_parameters(aruco_parameters_);
 
     if (!params_.board_descriptions_path.empty()) {
       load_boards();
@@ -201,7 +201,7 @@ public:
     RCLCPP_INFO(get_logger(), "Cleaning up");
 
     tf_broadcaster_.reset();
-    detector_parameters_.reset();
+    aruco_parameters_.reset();
     detector_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
@@ -222,7 +222,7 @@ public:
     tf_listener_.reset();
     tf_buffer_.reset();
     tf_broadcaster_.reset();
-    detector_parameters_.reset();
+    aruco_parameters_.reset();
     detector_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
@@ -240,6 +240,7 @@ protected:
   void retrieve_parameters()
   {
     params_ = retrieve_core_parameters(*this);
+    detector_params_ = retrieve_detector_parameters(*this);
 
     RCLCPP_INFO_STREAM(
       get_logger(), "Assume images are rectified: " << (params_.image_is_rectified ? "YES" : "NO"));
@@ -255,7 +256,8 @@ protected:
     RCLCPP_INFO_STREAM(get_logger(),
         "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
-    retrieve_aruco_parameters(*this, detector_parameters_, true);
+
+    retrieve_aruco_parameters(*this, aruco_parameters_, true);
   }
 
   rcl_interfaces::msg::SetParametersResult callback_on_set_parameters(
@@ -265,15 +267,19 @@ protected:
     if (!result.successful) {
       RCLCPP_ERROR_STREAM(get_logger(), result.reason);
     }
+    result = validate_detector_parameters(parameters);
+    if (!result.successful) {
+      RCLCPP_ERROR_STREAM(get_logger(), result.reason);
+    }
     return result;
   }
 
   void callback_post_set_parameters(const std::vector<rclcpp::Parameter> & parameters)
   {
-    update_dynamic_parameters(*this, parameters, params_, detector_parameters_);
+    update_dynamic_parameters(*this, parameters, detector_params_, aruco_parameters_);
 
-    detector_->set_marker_size(params_.marker_size);
-    detector_->set_detector_parameters(detector_parameters_);
+    detector_->set_detector_parameters(detector_params_);
+    detector_->set_aruco_parameters(aruco_parameters_);
   }
 
   void load_boards()
