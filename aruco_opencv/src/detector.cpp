@@ -26,10 +26,11 @@
 namespace aruco_opencv
 {
 
-ArucoDetector::ArucoDetector()
+ArucoDetector::ArucoDetector(rclcpp::Logger logger)
 : camera_matrix_(3, 3, CV_64FC1),
   distortion_coeffs_(4, 1, CV_64FC1, cv::Scalar(0)),
-  marker_obj_points_(4, 1, CV_32FC3)
+  marker_obj_points_(4, 1, CV_32FC3),
+  logger_{logger}
 {}
 
 void ArucoDetector::set_dictionary(const std::string & dictionary_name)
@@ -116,29 +117,43 @@ void ArucoDetector::detect(
   cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, aruco_parameters_);
 }
 
-static geometry_msgs::msg::Pose select_pose_from_candidates(
+geometry_msgs::msg::Pose ArucoDetector::select_pose_from_candidates(
   const std::vector<cv::Vec3d> & rvecs,
   const std::vector<cv::Vec3d> & tvecs,
   const std::vector<double> & reproj_errors,
-  const PoseSelectorConfig & selector_config)
+  const PoseSelectorConfig & selector_config) const
 {
   if (rvecs.empty() || tvecs.empty() || reproj_errors.empty() || (
       rvecs.size() != tvecs.size()) || (rvecs.size() != reproj_errors.size()))
   {
+    RCLCPP_WARN(logger_, "No valid poses to select from.");
     return geometry_msgs::msg::Pose();
   }
 
   size_t best_index = 0;
 
   if (selector_config.strategy == PoseSelectorStrategy::REPROJECTION_ERROR) {
+    if (selector_config.debug) {
+      RCLCPP_INFO(logger_, "Selecting pose based on reprojection error.");
+    }
+
     double min_reproj_error = reproj_errors[0];
     for (size_t i = 1; i < reproj_errors.size(); ++i) {
+      if (selector_config.debug) {
+        RCLCPP_INFO(logger_, "Candidate %zu: rotation vec = [%f, %f, %f], reproj error = %f",
+          i, rvecs[i][0], rvecs[i][1], rvecs[i][2], reproj_errors[i]);
+      }
+
       if (reproj_errors[i] < min_reproj_error) {
         min_reproj_error = reproj_errors[i];
         best_index = i;
       }
     }
   } else if (selector_config.strategy == PoseSelectorStrategy::PLANE_NORMAL) {
+    if (selector_config.debug) {
+      RCLCPP_INFO(logger_, "Selecting pose based on plane normal alignment.");
+    }
+
     // Select pose with the Z axis most aligned with camera Z axis (smallest angle)
     double max_cosine = -1.0;
     for (size_t i = 0; i < rvecs.size(); ++i) {
@@ -146,6 +161,12 @@ static geometry_msgs::msg::Pose select_pose_from_candidates(
       cv::Rodrigues(rvecs[i], R);
       cv::Vec3d z_axis = R.col(2);
       double cosine = z_axis[2] / cv::norm(z_axis);
+
+      if (selector_config.debug) {
+        RCLCPP_INFO(logger_, "Candidate %zu: rotation vec = [%f, %f, %f], cosine with Z = %f",
+          i, rvecs[i][0], rvecs[i][1], rvecs[i][2], cosine);
+      }
+
       if (cosine > max_cosine) {
         max_cosine = cosine;
         best_index = i;

@@ -28,6 +28,7 @@
 #include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
 
+#include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "aruco_opencv/utils.hpp"
@@ -50,7 +51,8 @@ struct BoardPoseOut
 
 class ArucoDetector {
 public:
-  ArucoDetector();
+  ArucoDetector() = delete;
+  explicit ArucoDetector(rclcpp::Logger logger = rclcpp::get_logger("ArucoDetector"));
 
   void set_dictionary(const std::string & dictionary_name);
   void set_detector_parameters(const DetectorParams & params);
@@ -82,6 +84,13 @@ public:
 
 private:
   void update_marker_object_points(double marker_size);
+  geometry_msgs::msg::Pose select_pose_from_candidates(
+    const std::vector<cv::Vec3d> & rvecs,
+    const std::vector<cv::Vec3d> & tvecs,
+    const std::vector<double> & reproj_errors,
+    const PoseSelectorConfig & selector_config) const;
+
+  rclcpp::Logger logger_;
 
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
   cv::Ptr<cv::aruco::DetectorParameters> aruco_parameters_;

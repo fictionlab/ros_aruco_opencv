@@ -105,7 +105,7 @@ public:
       return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
-    detector_ = std::make_unique<ArucoDetector>();
+    detector_ = std::make_unique<ArucoDetector>(get_logger().get_child("ArucoDetector"));
     detector_->set_dictionary(params_.marker_dict);
     detector_->set_detector_parameters(detector_params_);
     detector_->set_aruco_parameters(aruco_parameters_);
