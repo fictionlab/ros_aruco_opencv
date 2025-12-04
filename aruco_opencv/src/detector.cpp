@@ -116,7 +116,7 @@ void ArucoDetector::detect(
   cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, aruco_parameters_);
 }
 
-geometry_msgs::msg::Pose select_pose_from_candidates(
+static geometry_msgs::msg::Pose select_pose_from_candidates(
   const std::vector<cv::Vec3d> & rvecs,
   const std::vector<cv::Vec3d> & tvecs,
   const std::vector<double> & reproj_errors,
