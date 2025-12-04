@@ -196,7 +196,9 @@ inline void declare_detector_parameters(rclcpp_lifecycle::LifecycleNode & node)
 
 inline PoseSelectorStrategy parse_selector_strategy(const std::string & name)
 {
-  if (name == "PLANE_NORMAL") {return PoseSelectorStrategy::PLANE_NORMAL;}
+  if (name == "PLANE_NORMAL") {
+    return PoseSelectorStrategy::PLANE_NORMAL;
+  }
   return PoseSelectorStrategy::REPROJECTION_ERROR;
 }
 
