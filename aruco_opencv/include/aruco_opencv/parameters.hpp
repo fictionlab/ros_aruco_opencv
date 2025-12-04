@@ -192,7 +192,6 @@ inline void declare_detector_parameters(rclcpp_lifecycle::LifecycleNode & node)
 {
   declare_param(node, "marker_size", 0.15, true);
   declare_param(node, "pose_selector.strategy", std::string("REPROJECTION_ERROR"), true);
-  declare_param(node, "pose_selector.debug", false, true);
 }
 
 inline PoseSelectorStrategy parse_selector_strategy(const std::string & name)
@@ -433,7 +432,6 @@ inline DetectorParams retrieve_detector_parameters(rclcpp_lifecycle::LifecycleNo
   node.get_parameter("marker_size", out.marker_size);
   node.get_parameter("pose_selector.strategy", strategy_name);
   out.pose_selector.strategy = parse_selector_strategy(strategy_name);
-  node.get_parameter("pose_selector.debug", out.pose_selector.debug);
   return out;
 }
 
@@ -449,8 +447,6 @@ inline void update_dynamic_parameters(
       detector_params.marker_size = param.as_double();
     } else if (param.get_name() == "pose_selector.strategy") {
       detector_params.pose_selector.strategy = parse_selector_strategy(param.as_string());
-    } else if (param.get_name() == "pose_selector.debug") {
-      detector_params.pose_selector.debug = param.as_bool();
     } else if (param.get_name().rfind("aruco", 0) == 0) {
       aruco_param_changed = true;
     } else {
