@@ -425,9 +425,10 @@ inline rcl_interfaces::msg::SetParametersResult validate_detector_parameters(
     }
     if (param.get_name() == "pose_selector.strategy") {
       std::string strategy = param.as_string();
-      if (strategy != "REPROJECTION_ERROR" && strategy != "PLANE_NORMAL") {
+      if (strategy != "REPROJECTION_ERROR" && strategy != "PLANE_NORMAL_PARALLEL") {
         result.successful = false;
-        result.reason = "pose_selector.strategy must be one of: REPROJECTION_ERROR, PLANE_NORMAL";
+        result.reason =
+          "pose_selector.strategy must be one of: REPROJECTION_ERROR, PLANE_NORMAL_PARALLEL";
         return result;
       }
     }
