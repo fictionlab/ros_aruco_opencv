@@ -187,12 +187,13 @@ void ArucoDetector::estimate_marker_poses(
   std::vector<cv::Vec3d> & rvecs,
   std::vector<cv::Vec3d> & tvecs) const
 {
-  cv::Mat camera_matrix, distortion_coeffs;
+  cv::Mat camera_matrix, distortion_coeffs, marker_obj_points;
   PoseSelectorConfig selector_config;
   {
     std::lock_guard<std::mutex> lk(intrinsics_mutex_);
     camera_matrix_.copyTo(camera_matrix);
     distortion_coeffs_.copyTo(distortion_coeffs);
+    marker_obj_points_.copyTo(marker_obj_points);
     selector_config = params_.pose_selector;
   }
 
@@ -201,7 +202,7 @@ void ArucoDetector::estimate_marker_poses(
       for (int i = range.start; i < range.end; ++i) {
         std::vector<cv::Vec3d> rvecs_tmp, tvecs_tmp;
         std::vector<double> reproj_errors;
-        cv::solvePnPGeneric(marker_obj_points_, marker_corners[i], camera_matrix, distortion_coeffs,
+        cv::solvePnPGeneric(marker_obj_points, marker_corners[i], camera_matrix, distortion_coeffs,
           rvecs_tmp, tvecs_tmp, false, cv::SOLVEPNP_IPPE_SQUARE, cv::noArray(), cv::noArray(),
           reproj_errors);
 
