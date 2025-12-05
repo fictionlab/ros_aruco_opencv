@@ -117,7 +117,7 @@ void ArucoDetector::detect(
   cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, aruco_parameters_);
 }
 
-geometry_msgs::msg::Pose ArucoDetector::select_pose_from_candidates(
+size_t ArucoDetector::select_pose_from_candidates(
   const std::vector<cv::Vec3d> & rvecs,
   const std::vector<cv::Vec3d> & tvecs,
   const std::vector<double> & reproj_errors,
@@ -127,7 +127,7 @@ geometry_msgs::msg::Pose ArucoDetector::select_pose_from_candidates(
       rvecs.size() != tvecs.size()) || (rvecs.size() != reproj_errors.size()))
   {
     RCLCPP_WARN(logger_, "No valid poses to select from.");
-    return geometry_msgs::msg::Pose();
+    return 0;
   }
 
   size_t best_index = 0;
@@ -176,7 +176,7 @@ geometry_msgs::msg::Pose ArucoDetector::select_pose_from_candidates(
     best_index = 0;
   }
 
-  return convert_rvec_tvec(rvecs[best_index], tvecs[best_index]);
+  return best_index;
 }
 
 void ArucoDetector::estimate_marker_poses(
@@ -208,9 +208,13 @@ void ArucoDetector::estimate_marker_poses(
           rvecs_tmp, tvecs_tmp, false, cv::SOLVEPNP_IPPE_SQUARE, cv::noArray(), cv::noArray(),
           reproj_errors);
 
-        marker_poses[i].marker_id = marker_ids[i];
-        marker_poses[i].pose = select_pose_from_candidates(
+        size_t pose_index = select_pose_from_candidates(
           rvecs_tmp, tvecs_tmp, reproj_errors, selector_config);
+
+        marker_poses[i].marker_id = marker_ids[i];
+        rvecs[i] = rvecs_tmp[pose_index];
+        tvecs[i] = tvecs_tmp[pose_index];
+        marker_poses[i].pose = convert_rvec_tvec(rvecs[i], tvecs[i]);
       }
   });
 }

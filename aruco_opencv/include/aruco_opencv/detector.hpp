@@ -84,7 +84,16 @@ public:
 
 private:
   void update_marker_object_points(double marker_size);
-  geometry_msgs::msg::Pose select_pose_from_candidates(
+
+  /**
+   * @brief Selects the best pose from multiple candidates based on the given strategy
+   * @param rvecs rotation vectors of candidate poses
+   * @param tvecs translation vectors of candidate poses
+   * @param reproj_errors reprojection errors of candidate poses
+   * @param selector_config configuration for pose selection
+   * @return index of the selected pose
+   */
+  size_t select_pose_from_candidates(
     const std::vector<cv::Vec3d> & rvecs,
     const std::vector<cv::Vec3d> & tvecs,
     const std::vector<double> & reproj_errors,
