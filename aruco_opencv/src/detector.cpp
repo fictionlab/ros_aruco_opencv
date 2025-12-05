@@ -216,7 +216,7 @@ void ArucoDetector::estimate_marker_poses(
           rvecs_tmp, tvecs_tmp, reproj_errors, selector_config);
 
         if (pose_index == -1) {
-          // invalid
+          // Failed to select a valid pose; marker will be filtered out in compaction step below
         } else {
           marker_poses[i].marker_id = marker_ids[i];
           marker_poses[i].pose = convert_rvec_tvec(rvecs_tmp[pose_index], tvecs_tmp[pose_index]);
@@ -230,7 +230,7 @@ void ArucoDetector::estimate_marker_poses(
   // Compact outputs to filter invalid entries
   size_t write = 0;
   for (size_t i = 0; i < marker_ids.size(); ++i) {
-    if (!valid[i]) {continue;}
+    if (!valid[i]) { continue; }
     if (write != i) {
       marker_poses[write] = marker_poses[i];
       rvecs[write] = rvecs[i];

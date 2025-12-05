@@ -102,11 +102,11 @@ private:
 
   /**
    * @brief Selects the best pose from multiple candidates based on the given strategy
-   * @param rvecs rotation vectors of candidate poses
-   * @param tvecs translation vectors of candidate poses
-   * @param reproj_errors reprojection errors of candidate poses
-   * @param selector_config configuration for pose selection
-   * @return index of the selected pose. Returns -1 if no valid pose is found.
+   * @param rvecs Rotation vectors of candidate poses
+   * @param tvecs Translation vectors of candidate poses
+   * @param reproj_errors Reprojection errors of candidate poses
+   * @param selector_config Configuration for pose selection
+   * @return Index of the selected pose. Returns -1 if no valid pose is found.
    */
   ssize_t select_pose_from_candidates(
     const std::vector<cv::Vec3d> & rvecs,
