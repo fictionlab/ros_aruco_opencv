@@ -102,10 +102,12 @@ void declare_core_parameters(rclcpp_lifecycle::LifecycleNode & node)
   declare_param(node, "output_frame", std::string(""));
   declare_param(node, "marker_dict", std::string("4X4_50"));
   declare_param(node, "image_sub_compressed", false);
-  declare_param(node, "image_sub_qos.reliability",
-      static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
-  declare_param(node, "image_sub_qos.durability",
-      static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
+  declare_param(
+    node, "image_sub_qos.reliability",
+    static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
+  declare_param(
+    node, "image_sub_qos.durability",
+    static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
   declare_param(node, "image_sub_qos.depth", 1);
   declare_param(node, "publish_tf", true, true);
   declare_param(node, "board_descriptions_path", std::string(""));
@@ -119,62 +121,86 @@ void declare_aruco_parameters(rclcpp_lifecycle::LifecycleNode & node)
   auto default_parameters = cv::aruco::DetectorParameters::create();
   #endif
 
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.adaptiveThreshWinSizeMin", default_parameters->adaptiveThreshWinSizeMin, 3, 100);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.adaptiveThreshWinSizeMax", default_parameters->adaptiveThreshWinSizeMax, 3, 100);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.adaptiveThreshWinSizeStep", default_parameters->adaptiveThreshWinSizeStep, 1, 100);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.adaptiveThreshConstant", default_parameters->adaptiveThreshConstant, 0.0, 100.0);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.minMarkerPerimeterRate", default_parameters->minMarkerPerimeterRate, 0.0, 4.0);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.maxMarkerPerimeterRate", default_parameters->maxMarkerPerimeterRate, 0.0, 4.0);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.polygonalApproxAccuracyRate",
     default_parameters->polygonalApproxAccuracyRate, 0.0, 0.3);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.minCornerDistanceRate", default_parameters->minCornerDistanceRate, 0.0, 0.25);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.minDistanceToBorder", default_parameters->minDistanceToBorder, 0, 100);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.minMarkerDistanceRate", default_parameters->minMarkerDistanceRate, 0.0, 0.25);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.markerBorderBits", default_parameters->markerBorderBits, 1, 3);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.perspectiveRemovePixelPerCell",
     default_parameters->perspectiveRemovePixelPerCell, 1, 20);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.perspectiveRemoveIgnoredMarginPerCell",
     default_parameters->perspectiveRemoveIgnoredMarginPerCell, 0.0, 0.5);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.maxErroneousBitsInBorderRate",
     default_parameters->maxErroneousBitsInBorderRate, 0.0, 1.0);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.minOtsuStdDev", default_parameters->minOtsuStdDev, 0.0, 30.0);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.errorCorrectionRate", default_parameters->errorCorrectionRate, 0.0, 1.0);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.cornerRefinementMethod", default_parameters->cornerRefinementMethod, 0, 2);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.cornerRefinementWinSize", default_parameters->cornerRefinementWinSize, 2, 10);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.cornerRefinementMaxIterations",
     default_parameters->cornerRefinementMaxIterations, 1, 100);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.cornerRefinementMinAccuracy",
     default_parameters->cornerRefinementMinAccuracy, 0.01, 1.0);
-  declare_param(node,
+  declare_param(
+    node,
     "aruco.detectInvertedMarker", default_parameters->detectInvertedMarker, true);
 
   #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 6
-  declare_param(node,
+  declare_param(
+    node,
     "aruco.useAruco3Detection", default_parameters->useAruco3Detection, true);
-  declare_param_int_range(node,
+  declare_param_int_range(
+    node,
     "aruco.minSideLengthCanonicalImg",
     default_parameters->minSideLengthCanonicalImg, 1, 100);
-  declare_param_double_range(node,
+  declare_param_double_range(
+    node,
     "aruco.minMarkerLengthRatioOriginalImg",
     default_parameters->minMarkerLengthRatioOriginalImg, 0.0, 1.0);
   #endif
@@ -428,8 +454,8 @@ void update_dynamic_parameters(
     }
 
     RCLCPP_INFO_STREAM(
-        node.get_logger(),
-        "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
+      node.get_logger(),
+      "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
   }
 
   if (aruco_param_changed) {
