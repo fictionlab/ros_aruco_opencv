@@ -44,6 +44,7 @@ using ArucoDictType = cv::aruco::PREDEFINED_DICTIONARY_NAME;
 
 extern const std::unordered_map<std::string, ArucoDictType> ARUCO_DICT_MAP;
 
+PoseSelectorStrategy parse_selector_strategy(const std::string & name);
 std::string pose_selector_strategy_to_string(PoseSelectorStrategy strategy);
 
 }  // namespace aruco_opencv
