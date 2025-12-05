@@ -77,8 +77,8 @@ std::string pose_selector_strategy_to_string(PoseSelectorStrategy strategy)
   switch (strategy) {
     case PoseSelectorStrategy::REPROJECTION_ERROR:
       return "REPROJECTION_ERROR";
-    case PoseSelectorStrategy::PLANE_NORMAL:
-      return "PLANE_NORMAL";
+    case PoseSelectorStrategy::PLANE_NORMAL_PARALLEL:
+      return "PLANE_NORMAL_PARALLEL";
     default:
       return "UNKNOWN";
   }

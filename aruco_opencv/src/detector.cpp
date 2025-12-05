@@ -149,12 +149,11 @@ geometry_msgs::msg::Pose ArucoDetector::select_pose_from_candidates(
         best_index = i;
       }
     }
-  } else if (selector_config.strategy == PoseSelectorStrategy::PLANE_NORMAL) {
+  } else if (selector_config.strategy == PoseSelectorStrategy::PLANE_NORMAL_PARALLEL) {
     if (selector_config.debug) {
-      RCLCPP_INFO(logger_, "Selecting pose based on plane normal alignment.");
+      RCLCPP_INFO(logger_, "Selecting pose with plane normal most parallel to the camera Z-axis.");
     }
 
-    // Select pose with the Z axis most aligned with camera Z axis (smallest angle)
     double min_cosine = 1.0;
     for (size_t i = 0; i < rvecs.size(); ++i) {
       cv::Mat R;

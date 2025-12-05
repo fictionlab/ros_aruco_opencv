@@ -49,8 +49,10 @@ struct CoreParams
 
 enum class PoseSelectorStrategy
 {
+  /// Select pose with the lowest reprojection error
   REPROJECTION_ERROR,
-  PLANE_NORMAL
+  /// Select pose with the plane normal most parallel to camera view direction
+  PLANE_NORMAL_PARALLEL,
 };
 
 struct PoseSelectorConfig
@@ -198,8 +200,8 @@ inline void declare_detector_parameters(rclcpp_lifecycle::LifecycleNode & node)
 
 inline PoseSelectorStrategy parse_selector_strategy(const std::string & name)
 {
-  if (name == "PLANE_NORMAL") {
-    return PoseSelectorStrategy::PLANE_NORMAL;
+  if (name == "PLANE_NORMAL_PARALLEL") {
+    return PoseSelectorStrategy::PLANE_NORMAL_PARALLEL;
   }
   return PoseSelectorStrategy::REPROJECTION_ERROR;
 }
