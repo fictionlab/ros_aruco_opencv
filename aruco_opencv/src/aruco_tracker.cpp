@@ -56,7 +56,8 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
 {
   // Parameters
   CoreParams params_;
-  cv::Ptr<cv::aruco::DetectorParameters> detector_parameters_;
+  DetectorParams detector_params_;
+  cv::Ptr<cv::aruco::DetectorParameters> aruco_parameters_;
   bool transform_poses_;
 
   // ROS
@@ -75,7 +76,6 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
   std::unique_ptr<ArucoDetector> detector_;
 
-
   // Tf2
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -93,9 +93,9 @@ public:
     RCLCPP_INFO(get_logger(), "Configuring");
 
     #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-    detector_parameters_ = cv::makePtr<cv::aruco::DetectorParameters>();
+    aruco_parameters_ = cv::makePtr<cv::aruco::DetectorParameters>();
     #else
-    detector_parameters_ = cv::aruco::DetectorParameters::create();
+    aruco_parameters_ = cv::aruco::DetectorParameters::create();
     #endif
 
     retrieve_parameters();
@@ -105,10 +105,10 @@ public:
       return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
-    detector_ = std::make_unique<ArucoDetector>();
+    detector_ = std::make_unique<ArucoDetector>(get_logger().get_child("ArucoDetector"));
     detector_->set_dictionary(params_.marker_dict);
-    detector_->set_detector_parameters(detector_parameters_);
-    detector_->set_marker_size(params_.marker_size);
+    detector_->set_detector_parameters(detector_params_);
+    detector_->set_aruco_parameters(aruco_parameters_);
 
     if (!params_.board_descriptions_path.empty()) {
       load_boards();
@@ -201,7 +201,7 @@ public:
     RCLCPP_INFO(get_logger(), "Cleaning up");
 
     tf_broadcaster_.reset();
-    detector_parameters_.reset();
+    aruco_parameters_.reset();
     detector_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
@@ -221,7 +221,7 @@ public:
     tf_listener_.reset();
     tf_buffer_.reset();
     tf_broadcaster_.reset();
-    detector_parameters_.reset();
+    aruco_parameters_.reset();
     detector_.reset();
     detection_pub_.reset();
     debug_pub_.reset();
@@ -239,6 +239,7 @@ protected:
   void retrieve_parameters()
   {
     params_ = retrieve_core_parameters(*this);
+    detector_params_ = retrieve_detector_parameters(*this);
 
     RCLCPP_INFO_STREAM(
       get_logger(), "Assume images are rectified: " << (params_.image_is_rectified ? "YES" : "NO"));
@@ -251,11 +252,21 @@ protected:
         params_.output_frame.c_str());
       transform_poses_ = true;
     }
+<<<<<<< HEAD
     RCLCPP_INFO_STREAM(
       get_logger(),
       "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
+=======
+    RCLCPP_INFO_STREAM(get_logger(),
+        "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
+    RCLCPP_INFO_STREAM(get_logger(), "Marker size: " << detector_params_.marker_size << " meters");
+    RCLCPP_INFO_STREAM(get_logger(),
+        "Pose selector strategy: " <<
+        pose_selector_strategy_to_string(detector_params_.pose_selector.strategy));
+>>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
-    retrieve_aruco_parameters(*this, detector_parameters_, true);
+
+    retrieve_aruco_parameters(*this, aruco_parameters_, true);
   }
 
   rcl_interfaces::msg::SetParametersResult callback_on_set_parameters(
@@ -266,6 +277,7 @@ protected:
       RCLCPP_ERROR_STREAM(get_logger(), result.reason);
       return result;
     }
+<<<<<<< HEAD
 
     update_dynamic_parameters(*this, parameters, params_, detector_parameters_);
 
@@ -273,6 +285,21 @@ protected:
     detector_->set_detector_parameters(detector_parameters_);
 
     return result;
+=======
+    result = validate_detector_parameters(parameters);
+    if (!result.successful) {
+      RCLCPP_ERROR_STREAM(get_logger(), result.reason);
+    }
+    return result;
+  }
+
+  void callback_post_set_parameters(const std::vector<rclcpp::Parameter> & parameters)
+  {
+    update_dynamic_parameters(*this, parameters, detector_params_, aruco_parameters_);
+
+    detector_->set_detector_parameters(detector_params_);
+    detector_->set_aruco_parameters(aruco_parameters_);
+>>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
   }
 
   void load_boards()
@@ -359,13 +386,13 @@ protected:
     detector_->detect(cv_ptr->image, marker_ids, marker_corners);
 
     int n_markers = marker_ids.size();
-    std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
+    std::vector<cv::Vec3d> rvec_final, tvec_final;
 
     aruco_opencv_msgs::msg::ArucoDetection detection;
     detection.header.frame_id = cv_ptr->header.frame_id;
     detection.header.stamp = cv_ptr->header.stamp;
-    detection.markers.resize(n_markers);
 
+<<<<<<< HEAD
     std::vector<MarkerPose> marker_poses;
     detector_->estimate_marker_poses(
       marker_ids, marker_corners, marker_poses, rvec_final,
@@ -386,8 +413,15 @@ protected:
       detection.boards.push_back(bpose);
       n_markers++;
     }
+=======
+    detector_->estimate_marker_poses(marker_ids, marker_corners, detection.markers, rvec_final,
+        tvec_final);
 
-    if (transform_poses_ && n_markers > 0) {
+    detector_->estimate_board_poses(marker_ids, marker_corners, detection.boards, rvec_final,
+        tvec_final);
+>>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
+
+    if (transform_poses_ && (detection.markers.size() > 0 || detection.boards.size() > 0)) {
       detection.header.frame_id = params_.output_frame;
       geometry_msgs::msg::TransformStamped cam_to_output;
       // Retrieve camera -> output_frame transform
@@ -407,7 +441,7 @@ protected:
       }
     }
 
-    if (params_.publish_tf && n_markers > 0) {
+    if (params_.publish_tf && detection.markers.size() > 0) {
       std::vector<geometry_msgs::msg::TransformStamped> transforms;
       for (auto & marker_pose : detection.markers) {
         geometry_msgs::msg::TransformStamped transform;
@@ -443,7 +477,7 @@ protected:
       {
         cv::Mat camera_matrix, distortion_coeffs;
         detector_->get_intrinsics(camera_matrix, distortion_coeffs);
-        for (size_t i = 0; i < n_markers; i++) {
+        for (size_t i = 0; i < rvec_final.size(); i++) {
           cv::drawFrameAxes(
             debug_cv_ptr->image, camera_matrix, distortion_coeffs, rvec_final[i],
             tvec_final[i], 0.2, 3);
