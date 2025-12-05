@@ -51,10 +51,10 @@ static cv::Ptr<cv::aruco::Board> make_grid_board(
   std::vector<int> ids(bd.markers_x * bd.markers_y);
   std::iota(ids.begin(), ids.end(), bd.first_id);
   cv::Ptr<cv::aruco::Board> board = cv::makePtr<cv::aruco::GridBoard>(
-      cv::Size(bd.markers_x, bd.markers_y), bd.marker_size, bd.separation, *dict, ids);
+    cv::Size(bd.markers_x, bd.markers_y), bd.marker_size, bd.separation, *dict, ids);
 #else
   cv::Ptr<cv::aruco::Board> board = cv::aruco::GridBoard::create(
-      bd.markers_x, bd.markers_y, bd.marker_size, bd.separation, dict, bd.first_id);
+    bd.markers_x, bd.markers_y, bd.marker_size, bd.separation, dict, bd.first_id);
 #endif
   if (!bd.frame_at_center) {
     return board;

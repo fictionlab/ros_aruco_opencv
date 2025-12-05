@@ -47,7 +47,8 @@ struct BoardPoseOut
   geometry_msgs::msg::Pose pose;
 };
 
-class ArucoDetector {
+class ArucoDetector
+{
 public:
   ArucoDetector();
 

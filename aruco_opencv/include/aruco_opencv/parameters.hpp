@@ -352,10 +352,12 @@ inline void declare_all_parameters(rclcpp_lifecycle::LifecycleNode & node)
   declare_param(node, "output_frame", std::string(""));
   declare_param(node, "marker_dict", std::string("4X4_50"));
   declare_param(node, "image_sub_compressed", false);
-  declare_param(node, "image_sub_qos.reliability",
-      static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
-  declare_param(node, "image_sub_qos.durability",
-      static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
+  declare_param(
+    node, "image_sub_qos.reliability",
+    static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
+  declare_param(
+    node, "image_sub_qos.durability",
+    static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
   declare_param(node, "image_sub_qos.depth", 1);
   declare_param(node, "publish_tf", true, true);
   declare_param(node, "marker_size", 0.15, true);
@@ -419,8 +421,8 @@ inline void update_dynamic_parameters(
     }
 
     RCLCPP_INFO_STREAM(
-        node.get_logger(),
-        "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
+      node.get_logger(),
+      "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
   }
 
   if (aruco_param_changed) {

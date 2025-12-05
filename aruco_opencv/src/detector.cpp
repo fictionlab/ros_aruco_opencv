@@ -35,8 +35,9 @@ ArucoDetector::ArucoDetector()
 void ArucoDetector::set_dictionary(const std::string & dictionary_name)
 {
   #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-  dictionary_ = cv::makePtr<cv::aruco::Dictionary>(cv::aruco::getPredefinedDictionary(
-    ARUCO_DICT_MAP.at(dictionary_name)));
+  dictionary_ = cv::makePtr<cv::aruco::Dictionary>(
+    cv::aruco::getPredefinedDictionary(
+      ARUCO_DICT_MAP.at(dictionary_name)));
   #else
   dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(dictionary_name));
   #endif
@@ -129,14 +130,16 @@ void ArucoDetector::estimate_marker_poses(
     distortion_coeffs_.copyTo(distortion_coeffs);
   }
 
-  cv::parallel_for_(cv::Range(0, n), [&](const cv::Range & range) {
+  cv::parallel_for_(
+    cv::Range(0, n), [&](const cv::Range & range) {
       for (int i = range.start; i < range.end; ++i) {
-        cv::solvePnP(marker_obj_points_, marker_corners[i], camera_matrix, distortion_coeffs,
-                   rvecs[i], tvecs[i], false, cv::SOLVEPNP_IPPE_SQUARE);
+        cv::solvePnP(
+          marker_obj_points_, marker_corners[i], camera_matrix, distortion_coeffs,
+          rvecs[i], tvecs[i], false, cv::SOLVEPNP_IPPE_SQUARE);
         marker_poses[i].marker_id = marker_ids[i];
         marker_poses[i].pose = convert_rvec_tvec(rvecs[i], tvecs[i]);
       }
-  });
+    });
 }
 
 void ArucoDetector::estimate_board_poses(
@@ -158,8 +161,9 @@ void ArucoDetector::estimate_board_poses(
     auto & board = board_desc.second;
 
     cv::Vec3d rvec, tvec;
-    int valid = cv::aruco::estimatePoseBoard(marker_corners, marker_ids, board,
-                                             camera_matrix, distortion_coeffs, rvec, tvec);
+    int valid = cv::aruco::estimatePoseBoard(
+      marker_corners, marker_ids, board,
+      camera_matrix, distortion_coeffs, rvec, tvec);
     if (valid > 0) {
       BoardPoseOut bpose;
       bpose.board_name = name;

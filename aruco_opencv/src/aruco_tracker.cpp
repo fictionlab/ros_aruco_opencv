@@ -70,7 +70,6 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   rclcpp::Time last_msg_stamp_;
   bool cam_info_retrieved_ = false;
   rclcpp::Time callback_start_time_;
-  bool new_aruco_params_ = false;
 
   // Aruco
   std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> boards_;
@@ -106,20 +105,10 @@ public:
       return LifecycleNodeInterface::CallbackReturn::FAILURE;
     }
 
-<<<<<<< HEAD
-    #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-    dictionary_ = cv::makePtr<cv::aruco::Dictionary>(
-      cv::aruco::getPredefinedDictionary(
-        ARUCO_DICT_MAP.at(marker_dict_)));
-    #else
-    dictionary_ = cv::aruco::getPredefinedDictionary(ARUCO_DICT_MAP.at(marker_dict_));
-    #endif
-=======
     detector_ = std::make_unique<ArucoDetector>();
     detector_->set_dictionary(params_.marker_dict);
     detector_->set_detector_parameters(detector_parameters_);
     detector_->set_marker_size(params_.marker_size);
->>>>>>> 383239a (refactor: Split implementation into helper classes/functions (#55))
 
     if (!params_.board_descriptions_path.empty()) {
       load_boards();
@@ -262,8 +251,9 @@ protected:
         params_.output_frame.c_str());
       transform_poses_ = true;
     }
-    RCLCPP_INFO_STREAM(get_logger(),
-        "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
+    RCLCPP_INFO_STREAM(
+      get_logger(),
+      "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
     retrieve_aruco_parameters(*this, detector_parameters_, true);
   }
@@ -274,46 +264,26 @@ protected:
     auto result = validate_core_parameters(parameters);
     if (!result.successful) {
       RCLCPP_ERROR_STREAM(get_logger(), result.reason);
-    }
-<<<<<<< HEAD
-
-    for (auto & param : parameters) {
-      if (param.get_name() == "marker_size") {
-        marker_size_ = param.as_double();
-        update_marker_obj_points();
-      } else if (param.get_name().rfind("aruco", 0) == 0) {
-        new_aruco_params_ = true;
-      } else {
-        // Unknown parameter, ignore
-        continue;
-      }
-
-      RCLCPP_INFO_STREAM(
-        get_logger(),
-        "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
+      return result;
     }
 
-    return result;
-=======
-    return result;
-  }
-
-  void callback_post_set_parameters(const std::vector<rclcpp::Parameter> & parameters)
-  {
     update_dynamic_parameters(*this, parameters, params_, detector_parameters_);
 
     detector_->set_marker_size(params_.marker_size);
     detector_->set_detector_parameters(detector_parameters_);
->>>>>>> 383239a (refactor: Split implementation into helper classes/functions (#55))
+
+    return result;
   }
 
   void load_boards()
   {
-    RCLCPP_INFO_STREAM(get_logger(),
-        "Trying to load board descriptions from " << params_.board_descriptions_path);
+    RCLCPP_INFO_STREAM(
+      get_logger(),
+      "Trying to load board descriptions from " << params_.board_descriptions_path);
     std::string err;
     std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> loaded;
-    if (!BoardLoader::load_from_file(params_.board_descriptions_path, detector_->get_dictionary(),
+    if (!BoardLoader::load_from_file(
+        params_.board_descriptions_path, detector_->get_dictionary(),
         loaded, err))
     {
       RCLCPP_ERROR_STREAM(get_logger(), err);
@@ -321,8 +291,9 @@ protected:
     }
     boards_ = std::move(loaded);
     for (const auto & b : boards_) {
-      RCLCPP_INFO_STREAM(get_logger(),
-          "Successfully loaded configuration for board '" << b.first << "'");
+      RCLCPP_INFO_STREAM(
+        get_logger(),
+        "Successfully loaded configuration for board '" << b.first << "'");
     }
   }
 
@@ -383,11 +354,6 @@ protected:
 
   void process_image(const cv_bridge::CvImageConstPtr & cv_ptr)
   {
-    if (new_aruco_params_) {
-      new_aruco_params_ = false;
-      retrieve_aruco_parameters(*this, detector_parameters_);
-    }
-
     std::vector<int> marker_ids;
     std::vector<std::vector<cv::Point2f>> marker_corners;
     detector_->detect(cv_ptr->image, marker_ids, marker_corners);
@@ -401,16 +367,18 @@ protected:
     detection.markers.resize(n_markers);
 
     std::vector<MarkerPose> marker_poses;
-    detector_->estimate_marker_poses(marker_ids, marker_corners, marker_poses, rvec_final,
-        tvec_final);
+    detector_->estimate_marker_poses(
+      marker_ids, marker_corners, marker_poses, rvec_final,
+      tvec_final);
     for (int i = 0; i < n_markers; ++i) {
       detection.markers[i].marker_id = marker_poses[i].marker_id;
       detection.markers[i].pose = marker_poses[i].pose;
     }
 
     std::vector<BoardPoseOut> board_poses;
-    detector_->estimate_board_poses(marker_ids, marker_corners, board_poses, rvec_final,
-        tvec_final);
+    detector_->estimate_board_poses(
+      marker_ids, marker_corners, board_poses, rvec_final,
+      tvec_final);
     for (const auto & bp : board_poses) {
       aruco_opencv_msgs::msg::BoardPose bpose;
       bpose.board_name = bp.board_name;
