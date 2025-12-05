@@ -63,11 +63,25 @@ public:
   void set_boards(const std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & boards);
   cv::Ptr<cv::aruco::Dictionary> get_dictionary();
 
+  /**
+   * @brief Detects markers in the given image
+   * @param image Input image
+   * @param marker_ids Output vector of detected marker IDs
+   * @param marker_corners Output vector of detected marker corners
+   */
   void detect(
     const cv::Mat & image,
     std::vector<int> & marker_ids,
     std::vector<std::vector<cv::Point2f>> & marker_corners) const;
 
+  /**
+   * @brief Estimates poses of detected markers
+   * @param marker_ids IDs of detected markers
+   * @param marker_corners Corners of detected markers
+   * @param marker_poses Output vector of estimated marker poses
+   * @param rvecs Output rotation vectors of estimated poses
+   * @param tvecs Output translation vectors of estimated poses
+   */
   void estimate_marker_poses(
     const std::vector<int> & marker_ids,
     const std::vector<std::vector<cv::Point2f>> & marker_corners,
@@ -75,6 +89,14 @@ public:
     std::vector<cv::Vec3d> & rvecs,
     std::vector<cv::Vec3d> & tvecs) const;
 
+  /**
+   * @brief Estimates poses of known boards from detected markers
+   * @param marker_ids IDs of detected markers
+   * @param marker_corners Corners of detected markers
+   * @param board_poses Output vector of estimated board poses
+   * @param rvecs Output rotation vectors of estimated board poses
+   * @param tvecs Output translation vectors of estimated board poses
+   */
   void estimate_board_poses(
     const std::vector<int> & marker_ids,
     const std::vector<std::vector<cv::Point2f>> & marker_corners,
@@ -83,6 +105,9 @@ public:
     std::vector<cv::Vec3d> & tvecs) const;
 
 private:
+  /**
+   * @brief Updates the 3D object points of the marker corners based on the marker size
+   */
   void update_marker_object_points(double marker_size);
 
   /**

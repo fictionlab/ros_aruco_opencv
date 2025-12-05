@@ -47,6 +47,7 @@ struct CoreParams
   std::string board_descriptions_path;
 };
 
+/// @brief Strategy for selecting the best pose among multiple candidates
 enum class PoseSelectorStrategy
 {
   /// Select pose with the lowest reprojection error
@@ -55,9 +56,12 @@ enum class PoseSelectorStrategy
   PLANE_NORMAL_PARALLEL,
 };
 
+/// @brief Configuration for pose selection
 struct PoseSelectorConfig
 {
+  /// Strategy to use for pose selection
   PoseSelectorStrategy strategy = PoseSelectorStrategy::REPROJECTION_ERROR;
+  /// Enable debug output
   bool debug = false;
 };
 
