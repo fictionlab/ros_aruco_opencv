@@ -52,7 +52,7 @@ struct BoardPoseOut
 class ArucoDetector {
 public:
   ArucoDetector() = delete;
-  explicit ArucoDetector(rclcpp::Logger logger = rclcpp::get_logger("ArucoDetector"));
+  explicit ArucoDetector(rclcpp::Logger logger);
 
   void set_dictionary(const std::string & dictionary_name);
   void set_detector_parameters(const DetectorParams & params);
