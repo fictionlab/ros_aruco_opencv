@@ -2,6 +2,13 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* refactor: Move parameter handling to different file (backport `#57 <https://github.com/fictionlab/ros_aruco_opencv/issues/57>`_) (`#60 <https://github.com/fictionlab/ros_aruco_opencv/issues/60>`_)
+* feat: Add pose selection strategies (backport `#56 <https://github.com/fictionlab/ros_aruco_opencv/issues/56>`_) (`#59 <https://github.com/fictionlab/ros_aruco_opencv/issues/59>`_)
+* refactor: Split implementation into helper classes/functions (backport `#55 <https://github.com/fictionlab/ros_aruco_opencv/issues/55>`_) (`#58 <https://github.com/fictionlab/ros_aruco_opencv/issues/58>`_)
+* Contributors: Błażej Sowa
+
 2.3.1 (2024-06-04)
 ------------------
 * Fix out of bounds indexes when retrieving camera matrix for rectified images (`#47 <https://github.com/fictionlab/ros_aruco_opencv/issues/47>`_) (`#49 <https://github.com/fictionlab/ros_aruco_opencv/issues/49>`_)
