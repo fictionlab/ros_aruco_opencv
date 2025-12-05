@@ -367,31 +367,17 @@ protected:
     detector_->detect(cv_ptr->image, marker_ids, marker_corners);
 
     int n_markers = marker_ids.size();
-    std::vector<cv::Vec3d> rvec_final(n_markers), tvec_final(n_markers);
+    std::vector<cv::Vec3d> rvec_final, tvec_final;
 
     aruco_opencv_msgs::msg::ArucoDetection detection;
     detection.header.frame_id = cv_ptr->header.frame_id;
     detection.header.stamp = cv_ptr->header.stamp;
-    detection.markers.resize(n_markers);
 
-    std::vector<MarkerPose> marker_poses;
-    detector_->estimate_marker_poses(marker_ids, marker_corners, marker_poses, rvec_final,
+    detector_->estimate_marker_poses(marker_ids, marker_corners, detection.markers, rvec_final,
         tvec_final);
-    for (int i = 0; i < n_markers; ++i) {
-      detection.markers[i].marker_id = marker_poses[i].marker_id;
-      detection.markers[i].pose = marker_poses[i].pose;
-    }
 
-    std::vector<BoardPoseOut> board_poses;
-    detector_->estimate_board_poses(marker_ids, marker_corners, board_poses, rvec_final,
+    detector_->estimate_board_poses(marker_ids, marker_corners, detection.boards, rvec_final,
         tvec_final);
-    for (const auto & bp : board_poses) {
-      aruco_opencv_msgs::msg::BoardPose bpose;
-      bpose.board_name = bp.board_name;
-      bpose.pose = bp.pose;
-      detection.boards.push_back(bpose);
-      n_markers++;
-    }
 
     if (transform_poses_ && n_markers > 0) {
       detection.header.frame_id = params_.output_frame;
@@ -413,7 +399,7 @@ protected:
       }
     }
 
-    if (params_.publish_tf && n_markers > 0) {
+    if (params_.publish_tf && detection.markers.size() > 0) {
       std::vector<geometry_msgs::msg::TransformStamped> transforms;
       for (auto & marker_pose : detection.markers) {
         geometry_msgs::msg::TransformStamped transform;
@@ -449,7 +435,7 @@ protected:
       {
         cv::Mat camera_matrix, distortion_coeffs;
         detector_->get_intrinsics(camera_matrix, distortion_coeffs);
-        for (size_t i = 0; i < n_markers; i++) {
+        for (size_t i = 0; i < rvec_final.size(); i++) {
           cv::drawFrameAxes(
             debug_cv_ptr->image, camera_matrix, distortion_coeffs, rvec_final[i],
             tvec_final[i], 0.2, 3);

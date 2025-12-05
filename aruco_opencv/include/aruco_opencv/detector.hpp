@@ -33,21 +33,11 @@
 #include "geometry_msgs/msg/pose.hpp"
 #include "aruco_opencv/utils.hpp"
 #include "aruco_opencv/parameters.hpp"
+#include "aruco_opencv_msgs/msg/marker_pose.hpp"
+#include "aruco_opencv_msgs/msg/board_pose.hpp"
 
 namespace aruco_opencv
 {
-
-struct MarkerPose
-{
-  int marker_id;
-  geometry_msgs::msg::Pose pose;
-};
-
-struct BoardPoseOut
-{
-  std::string board_name;
-  geometry_msgs::msg::Pose pose;
-};
 
 class ArucoDetector {
 public:
@@ -85,7 +75,7 @@ public:
   void estimate_marker_poses(
     const std::vector<int> & marker_ids,
     const std::vector<std::vector<cv::Point2f>> & marker_corners,
-    std::vector<MarkerPose> & marker_poses,
+    std::vector<aruco_opencv_msgs::msg::MarkerPose> & marker_poses,
     std::vector<cv::Vec3d> & rvecs,
     std::vector<cv::Vec3d> & tvecs) const;
 
@@ -100,7 +90,7 @@ public:
   void estimate_board_poses(
     const std::vector<int> & marker_ids,
     const std::vector<std::vector<cv::Point2f>> & marker_corners,
-    std::vector<BoardPoseOut> & board_poses,
+    std::vector<aruco_opencv_msgs::msg::BoardPose> & board_poses,
     std::vector<cv::Vec3d> & rvecs,
     std::vector<cv::Vec3d> & tvecs) const;
 
@@ -116,9 +106,9 @@ private:
    * @param tvecs translation vectors of candidate poses
    * @param reproj_errors reprojection errors of candidate poses
    * @param selector_config configuration for pose selection
-   * @return index of the selected pose
+   * @return index of the selected pose. Returns -1 if no valid pose is found.
    */
-  size_t select_pose_from_candidates(
+  ssize_t select_pose_from_candidates(
     const std::vector<cv::Vec3d> & rvecs,
     const std::vector<cv::Vec3d> & tvecs,
     const std::vector<double> & reproj_errors,

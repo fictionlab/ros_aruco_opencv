@@ -117,7 +117,7 @@ void ArucoDetector::detect(
   cv::aruco::detectMarkers(image, dictionary_, marker_corners, marker_ids, aruco_parameters_);
 }
 
-size_t ArucoDetector::select_pose_from_candidates(
+ssize_t ArucoDetector::select_pose_from_candidates(
   const std::vector<cv::Vec3d> & rvecs,
   const std::vector<cv::Vec3d> & tvecs,
   const std::vector<double> & reproj_errors,
@@ -127,7 +127,7 @@ size_t ArucoDetector::select_pose_from_candidates(
       rvecs.size() != tvecs.size()) || (rvecs.size() != reproj_errors.size()))
   {
     RCLCPP_WARN(logger_, "No valid poses to select from.");
-    return 0;
+    return -1;
   }
 
   size_t best_index = 0;
@@ -182,15 +182,10 @@ size_t ArucoDetector::select_pose_from_candidates(
 void ArucoDetector::estimate_marker_poses(
   const std::vector<int> & marker_ids,
   const std::vector<std::vector<cv::Point2f>> & marker_corners,
-  std::vector<MarkerPose> & marker_poses,
+  std::vector<aruco_opencv_msgs::msg::MarkerPose> & marker_poses,
   std::vector<cv::Vec3d> & rvecs,
   std::vector<cv::Vec3d> & tvecs) const
 {
-  const int n = static_cast<int>(marker_ids.size());
-  rvecs.resize(n);
-  tvecs.resize(n);
-  marker_poses.resize(n);
-
   cv::Mat camera_matrix, distortion_coeffs;
   PoseSelectorConfig selector_config;
   {
@@ -200,7 +195,8 @@ void ArucoDetector::estimate_marker_poses(
     selector_config = params_.pose_selector;
   }
 
-  cv::parallel_for_(cv::Range(0, n), [&](const cv::Range & range) {
+  cv::parallel_for_(cv::Range(0, static_cast<int>(marker_ids.size())),
+    [&](const cv::Range & range) {
       for (int i = range.start; i < range.end; ++i) {
         std::vector<cv::Vec3d> rvecs_tmp, tvecs_tmp;
         std::vector<double> reproj_errors;
@@ -208,13 +204,17 @@ void ArucoDetector::estimate_marker_poses(
           rvecs_tmp, tvecs_tmp, false, cv::SOLVEPNP_IPPE_SQUARE, cv::noArray(), cv::noArray(),
           reproj_errors);
 
-        size_t pose_index = select_pose_from_candidates(
+        ssize_t pose_index = select_pose_from_candidates(
           rvecs_tmp, tvecs_tmp, reproj_errors, selector_config);
 
-        marker_poses[i].marker_id = marker_ids[i];
-        rvecs[i] = rvecs_tmp[pose_index];
-        tvecs[i] = tvecs_tmp[pose_index];
-        marker_poses[i].pose = convert_rvec_tvec(rvecs[i], tvecs[i]);
+        if (pose_index != -1) {
+          aruco_opencv_msgs::msg::MarkerPose mp;
+          mp.marker_id = marker_ids[i];
+          mp.pose = convert_rvec_tvec(rvecs_tmp[pose_index], tvecs_tmp[pose_index]);
+          marker_poses.push_back(mp);
+          rvecs.push_back(rvecs_tmp[pose_index]);
+          tvecs.push_back(tvecs_tmp[pose_index]);
+        }
       }
   });
 }
@@ -222,7 +222,7 @@ void ArucoDetector::estimate_marker_poses(
 void ArucoDetector::estimate_board_poses(
   const std::vector<int> & marker_ids,
   const std::vector<std::vector<cv::Point2f>> & marker_corners,
-  std::vector<BoardPoseOut> & board_poses,
+  std::vector<aruco_opencv_msgs::msg::BoardPose> & board_poses,
   std::vector<cv::Vec3d> & rvecs,
   std::vector<cv::Vec3d> & tvecs) const
 {
@@ -241,7 +241,7 @@ void ArucoDetector::estimate_board_poses(
     int valid = cv::aruco::estimatePoseBoard(marker_corners, marker_ids, board,
                                              camera_matrix, distortion_coeffs, rvec, tvec);
     if (valid > 0) {
-      BoardPoseOut bpose;
+      aruco_opencv_msgs::msg::BoardPose bpose;
       bpose.board_name = name;
       bpose.pose = convert_rvec_tvec(rvec, tvec);
       board_poses.push_back(bpose);
