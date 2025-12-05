@@ -379,7 +379,7 @@ protected:
     detector_->estimate_board_poses(marker_ids, marker_corners, detection.boards, rvec_final,
         tvec_final);
 
-    if (transform_poses_ && n_markers > 0) {
+    if (transform_poses_ && (detection.markers.size() > 0 || detection.boards.size() > 0)) {
       detection.header.frame_id = params_.output_frame;
       geometry_msgs::msg::TransformStamped cam_to_output;
       // Retrieve camera -> output_frame transform
