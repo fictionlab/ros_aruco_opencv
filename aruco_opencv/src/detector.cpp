@@ -187,6 +187,11 @@ void ArucoDetector::estimate_marker_poses(
   std::vector<cv::Vec3d> & rvecs,
   std::vector<cv::Vec3d> & tvecs) const
 {
+  const size_t n_markers = marker_ids.size();
+  marker_poses.resize(n_markers);
+  rvecs.resize(n_markers);
+  tvecs.resize(n_markers);
+
   cv::Mat camera_matrix, distortion_coeffs, marker_obj_points;
   PoseSelectorConfig selector_config;
   {
@@ -197,6 +202,7 @@ void ArucoDetector::estimate_marker_poses(
     selector_config = params_.pose_selector;
   }
 
+  std::vector<bool> valid(marker_ids.size(), false);
   cv::parallel_for_(cv::Range(0, static_cast<int>(marker_ids.size())),
     [&](const cv::Range & range) {
       for (int i = range.start; i < range.end; ++i) {
@@ -209,16 +215,32 @@ void ArucoDetector::estimate_marker_poses(
         ssize_t pose_index = select_pose_from_candidates(
           rvecs_tmp, tvecs_tmp, reproj_errors, selector_config);
 
-        if (pose_index != -1) {
-          aruco_opencv_msgs::msg::MarkerPose mp;
-          mp.marker_id = marker_ids[i];
-          mp.pose = convert_rvec_tvec(rvecs_tmp[pose_index], tvecs_tmp[pose_index]);
-          marker_poses.push_back(mp);
-          rvecs.push_back(rvecs_tmp[pose_index]);
-          tvecs.push_back(tvecs_tmp[pose_index]);
+        if (pose_index == -1) {
+          // invalid
+        } else {
+          marker_poses[i].marker_id = marker_ids[i];
+          marker_poses[i].pose = convert_rvec_tvec(rvecs_tmp[pose_index], tvecs_tmp[pose_index]);
+          rvecs[i] = rvecs_tmp[pose_index];
+          tvecs[i] = tvecs_tmp[pose_index];
+          valid[i] = true;
         }
       }
   });
+
+  // Compact outputs to filter invalid entries
+  size_t write = 0;
+  for (size_t i = 0; i < marker_ids.size(); ++i) {
+    if (!valid[i]) {continue;}
+    if (write != i) {
+      marker_poses[write] = marker_poses[i];
+      rvecs[write] = rvecs[i];
+      tvecs[write] = tvecs[i];
+    }
+    ++write;
+  }
+  marker_poses.resize(write);
+  rvecs.resize(write);
+  tvecs.resize(write);
 }
 
 void ArucoDetector::estimate_board_poses(
