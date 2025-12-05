@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+6.1.0 (2025-12-05)
+------------------
 * refactor: Move parameter handling to different file (`#57 <https://github.com/fictionlab/ros_aruco_opencv/issues/57>`_)
 * feat: Add pose selection strategies (`#56 <https://github.com/fictionlab/ros_aruco_opencv/issues/56>`_)
 * refactor: Split implementation into helper classes/functions (`#55 <https://github.com/fictionlab/ros_aruco_opencv/issues/55>`_)
