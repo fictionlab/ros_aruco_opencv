@@ -252,18 +252,14 @@ protected:
         params_.output_frame.c_str());
       transform_poses_ = true;
     }
-<<<<<<< HEAD
     RCLCPP_INFO_STREAM(
       get_logger(),
       "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
-=======
-    RCLCPP_INFO_STREAM(get_logger(),
-        "TF publishing is " << (params_.publish_tf ? "enabled" : "disabled"));
     RCLCPP_INFO_STREAM(get_logger(), "Marker size: " << detector_params_.marker_size << " meters");
-    RCLCPP_INFO_STREAM(get_logger(),
-        "Pose selector strategy: " <<
+    RCLCPP_INFO_STREAM(
+      get_logger(),
+      "Pose selector strategy: " <<
         pose_selector_strategy_to_string(detector_params_.pose_selector.strategy));
->>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
     RCLCPP_INFO(get_logger(), "Aruco Parameters:");
 
     retrieve_aruco_parameters(*this, aruco_parameters_, true);
@@ -277,29 +273,16 @@ protected:
       RCLCPP_ERROR_STREAM(get_logger(), result.reason);
       return result;
     }
-<<<<<<< HEAD
-
-    update_dynamic_parameters(*this, parameters, params_, detector_parameters_);
-
-    detector_->set_marker_size(params_.marker_size);
-    detector_->set_detector_parameters(detector_parameters_);
-
-    return result;
-=======
     result = validate_detector_parameters(parameters);
     if (!result.successful) {
       RCLCPP_ERROR_STREAM(get_logger(), result.reason);
     }
     return result;
-  }
 
-  void callback_post_set_parameters(const std::vector<rclcpp::Parameter> & parameters)
-  {
     update_dynamic_parameters(*this, parameters, detector_params_, aruco_parameters_);
 
     detector_->set_detector_parameters(detector_params_);
     detector_->set_aruco_parameters(aruco_parameters_);
->>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
   }
 
   void load_boards()
@@ -392,34 +375,13 @@ protected:
     detection.header.frame_id = cv_ptr->header.frame_id;
     detection.header.stamp = cv_ptr->header.stamp;
 
-<<<<<<< HEAD
-    std::vector<MarkerPose> marker_poses;
     detector_->estimate_marker_poses(
-      marker_ids, marker_corners, marker_poses, rvec_final,
+      marker_ids, marker_corners, detection.markers, rvec_final,
       tvec_final);
-    for (int i = 0; i < n_markers; ++i) {
-      detection.markers[i].marker_id = marker_poses[i].marker_id;
-      detection.markers[i].pose = marker_poses[i].pose;
-    }
 
-    std::vector<BoardPoseOut> board_poses;
     detector_->estimate_board_poses(
-      marker_ids, marker_corners, board_poses, rvec_final,
+      marker_ids, marker_corners, detection.boards, rvec_final,
       tvec_final);
-    for (const auto & bp : board_poses) {
-      aruco_opencv_msgs::msg::BoardPose bpose;
-      bpose.board_name = bp.board_name;
-      bpose.pose = bp.pose;
-      detection.boards.push_back(bpose);
-      n_markers++;
-    }
-=======
-    detector_->estimate_marker_poses(marker_ids, marker_corners, detection.markers, rvec_final,
-        tvec_final);
-
-    detector_->estimate_board_poses(marker_ids, marker_corners, detection.boards, rvec_final,
-        tvec_final);
->>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
 
     if (transform_poses_ && (detection.markers.size() > 0 || detection.boards.size() > 0)) {
       detection.header.frame_id = params_.output_frame;

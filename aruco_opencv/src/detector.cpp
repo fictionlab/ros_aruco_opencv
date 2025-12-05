@@ -142,7 +142,8 @@ ssize_t ArucoDetector::select_pose_from_candidates(
     double min_reproj_error = reproj_errors[0];
     for (size_t i = 0; i < reproj_errors.size(); ++i) {
       if (selector_config.debug) {
-        RCLCPP_INFO(logger_, "Candidate %zu: rotation vec = [%f, %f, %f], reproj error = %f",
+        RCLCPP_INFO(
+          logger_, "Candidate %zu: rotation vec = [%f, %f, %f], reproj error = %f",
           i, rvecs[i][0], rvecs[i][1], rvecs[i][2], reproj_errors[i]);
       }
 
@@ -164,7 +165,8 @@ ssize_t ArucoDetector::select_pose_from_candidates(
       double cosine = z_axis[2];
 
       if (selector_config.debug) {
-        RCLCPP_INFO(logger_, "Candidate %zu: rotation vec = [%f, %f, %f], cosine with Z = %f",
+        RCLCPP_INFO(
+          logger_, "Candidate %zu: rotation vec = [%f, %f, %f], cosine with Z = %f",
           i, rvecs[i][0], rvecs[i][1], rvecs[i][2], cosine);
       }
 
@@ -203,25 +205,15 @@ void ArucoDetector::estimate_marker_poses(
     selector_config = params_.pose_selector;
   }
 
-<<<<<<< HEAD
-  cv::parallel_for_(
-    cv::Range(0, n), [&](const cv::Range & range) {
-      for (int i = range.start; i < range.end; ++i) {
-        cv::solvePnP(
-          marker_obj_points_, marker_corners[i], camera_matrix, distortion_coeffs,
-          rvecs[i], tvecs[i], false, cv::SOLVEPNP_IPPE_SQUARE);
-        marker_poses[i].marker_id = marker_ids[i];
-        marker_poses[i].pose = convert_rvec_tvec(rvecs[i], tvecs[i]);
-      }
-    });
-=======
   std::vector<bool> valid(marker_ids.size(), false);
-  cv::parallel_for_(cv::Range(0, static_cast<int>(marker_ids.size())),
+  cv::parallel_for_(
+    cv::Range(0, static_cast<int>(marker_ids.size())),
     [&](const cv::Range & range) {
       for (int i = range.start; i < range.end; ++i) {
         std::vector<cv::Vec3d> rvecs_tmp, tvecs_tmp;
         std::vector<double> reproj_errors;
-        cv::solvePnPGeneric(marker_obj_points, marker_corners[i], camera_matrix, distortion_coeffs,
+        cv::solvePnPGeneric(
+          marker_obj_points, marker_corners[i], camera_matrix, distortion_coeffs,
           rvecs_tmp, tvecs_tmp, false, cv::SOLVEPNP_IPPE_SQUARE, cv::noArray(), cv::noArray(),
           reproj_errors);
 
@@ -238,7 +230,7 @@ void ArucoDetector::estimate_marker_poses(
           valid[i] = true;
         }
       }
-  });
+    });
 
   // Compact outputs to filter invalid entries
   size_t write = 0;
@@ -256,7 +248,6 @@ void ArucoDetector::estimate_marker_poses(
   marker_poses.resize(write);
   rvecs.resize(write);
   tvecs.resize(write);
->>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
 }
 
 void ArucoDetector::estimate_board_poses(

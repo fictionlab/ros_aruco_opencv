@@ -39,24 +39,8 @@
 namespace aruco_opencv
 {
 
-<<<<<<< HEAD
-struct MarkerPose
-{
-  int marker_id;
-  geometry_msgs::msg::Pose pose;
-};
-
-struct BoardPoseOut
-{
-  std::string board_name;
-  geometry_msgs::msg::Pose pose;
-};
-
 class ArucoDetector
 {
-=======
-class ArucoDetector {
->>>>>>> 66dd81e (feat: Add pose selection strategies (#56))
 public:
   ArucoDetector() = delete;
   explicit ArucoDetector(rclcpp::Logger logger);
