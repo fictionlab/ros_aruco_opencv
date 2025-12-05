@@ -230,7 +230,9 @@ void ArucoDetector::estimate_marker_poses(
   // Compact outputs to filter invalid entries
   size_t write = 0;
   for (size_t i = 0; i < marker_ids.size(); ++i) {
-    if (!valid[i]) { continue; }
+    if (!valid[i]) {
+      continue;
+    }
     if (write != i) {
       marker_poses[write] = marker_poses[i];
       rvecs[write] = rvecs[i];
