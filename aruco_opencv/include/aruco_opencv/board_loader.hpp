@@ -1,4 +1,4 @@
-// Copyright 2022-2025 Fictionlab sp. z o.o.
+// Copyright 2025 Fictionlab sp. z o.o.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,25 +21,33 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
+#include <vector>
+#include <utility>
 
 #include <opencv2/aruco.hpp>
-#include <opencv2/calib3d.hpp>
-
-#include "geometry_msgs/msg/pose.hpp"
-#include "cv_bridge/cv_bridge.h"
 
 namespace aruco_opencv
 {
 
-geometry_msgs::msg::Pose convert_rvec_tvec(const cv::Vec3d & rvec, const cv::Vec3d & tvec);
+struct BoardDescription
+{
+  std::string name;
+  bool frame_at_center;
+  int markers_x;
+  int markers_y;
+  double marker_size;
+  double separation;
+  int first_id;
+};
 
-#if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
-using ArucoDictType = cv::aruco::PredefinedDictionaryType;
-#else
-using ArucoDictType = cv::aruco::PREDEFINED_DICTIONARY_NAME;
-#endif
-
-extern const std::unordered_map<std::string, ArucoDictType> ARUCO_DICT_MAP;
+class BoardLoader
+{
+public:
+  static bool load_from_file(
+    const std::string & path,
+    const cv::Ptr<cv::aruco::Dictionary> & dictionary,
+    std::vector<std::pair<std::string, cv::Ptr<cv::aruco::Board>>> & out_boards,
+    std::string & error_message);
+};
 
 }  // namespace aruco_opencv

@@ -1,4 +1,4 @@
-// Copyright 2022 Kell Ideas sp. z o.o.
+// Copyright 2022-2025 Fictionlab sp. z o.o.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,28 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
 namespace aruco_opencv
 {
+
+struct CoreParams
+{
+  std::string cam_base_topic;
+  bool image_is_rectified;
+  std::string output_frame;
+  std::string marker_dict;
+  bool image_sub_compressed;
+  int qos_rel;
+  int qos_dur;
+  int qos_depth;
+  bool publish_tf;
+  double marker_size;
+  std::string board_descriptions_path;
+};
 
 template<class NodeT, typename T>
 inline void declare_param(
@@ -84,8 +100,7 @@ inline void declare_param_double_range(
   node.declare_parameter(param_name, default_value, descriptor);
 }
 
-template<class NodeT>
-inline void declare_aruco_parameters(NodeT && node)
+inline void declare_aruco_parameters(rclcpp_lifecycle::LifecycleNode & node)
 {
   #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
   auto default_parameters = cv::makePtr<cv::aruco::DetectorParameters>();
@@ -178,9 +193,9 @@ inline void declare_aruco_parameters(NodeT && node)
   #endif
 }
 
-template<class NodeT>
-void retrieve_aruco_parameters(
-  NodeT && node, cv::Ptr<cv::aruco::DetectorParameters> & detector_parameters,
+inline void retrieve_aruco_parameters(
+  rclcpp_lifecycle::LifecycleNode & node,
+  cv::Ptr<cv::aruco::DetectorParameters> & detector_parameters,
   bool log_values = false)
 {
   node.get_parameter(
@@ -327,6 +342,91 @@ void retrieve_aruco_parameters(
       " * minMarkerLengthRatioOriginalImg: " <<
         detector_parameters->minMarkerLengthRatioOriginalImg);
     #endif
+  }
+}
+
+inline void declare_all_parameters(rclcpp_lifecycle::LifecycleNode & node)
+{
+  declare_param(node, "cam_base_topic", std::string("camera/image_raw"));
+  declare_param(node, "image_is_rectified", false, false);
+  declare_param(node, "output_frame", std::string(""));
+  declare_param(node, "marker_dict", std::string("4X4_50"));
+  declare_param(node, "image_sub_compressed", false);
+  declare_param(
+    node, "image_sub_qos.reliability",
+    static_cast<int>(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT));
+  declare_param(
+    node, "image_sub_qos.durability",
+    static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
+  declare_param(node, "image_sub_qos.depth", 1);
+  declare_param(node, "publish_tf", true, true);
+  declare_param(node, "marker_size", 0.15, true);
+  declare_param(node, "board_descriptions_path", std::string(""));
+  declare_aruco_parameters(node);
+}
+
+inline CoreParams retrieve_core_parameters(rclcpp_lifecycle::LifecycleNode & node)
+{
+  CoreParams out{};
+  get_param(node, "cam_base_topic", out.cam_base_topic, "Camera Base Topic: ");
+  node.get_parameter("image_is_rectified", out.image_is_rectified);
+  node.get_parameter("output_frame", out.output_frame);
+  get_param(node, "marker_dict", out.marker_dict, "Marker Dictionary name: ");
+  node.get_parameter("image_sub_compressed", out.image_sub_compressed);
+  node.get_parameter("image_sub_qos.reliability", out.qos_rel);
+  node.get_parameter("image_sub_qos.durability", out.qos_dur);
+  node.get_parameter("image_sub_qos.depth", out.qos_depth);
+  node.get_parameter("publish_tf", out.publish_tf);
+  get_param(node, "marker_size", out.marker_size, "Marker size: ");
+  node.get_parameter("board_descriptions_path", out.board_descriptions_path);
+  return out;
+}
+
+inline rcl_interfaces::msg::SetParametersResult validate_core_parameters(
+  const std::vector<rclcpp::Parameter> & parameters)
+{
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+  for (const auto & param : parameters) {
+    if (param.get_name() == "marker_size" && param.as_double() <= 0.0) {
+      result.successful = false;
+      result.reason = "marker_size must be positive";
+      return result;
+    }
+    if (param.get_name() == "image_sub_qos.depth" && param.as_int() < 1) {
+      result.successful = false;
+      result.reason = "image_sub_qos.depth must be >= 1";
+      return result;
+    }
+  }
+
+  return result;
+}
+
+inline void update_dynamic_parameters(
+  rclcpp_lifecycle::LifecycleNode & node,
+  const std::vector<rclcpp::Parameter> & parameters,
+  CoreParams & params,
+  cv::Ptr<cv::aruco::DetectorParameters> & detector_parameters)
+{
+  bool aruco_param_changed = false;
+  for (auto & param : parameters) {
+    if (param.get_name() == "marker_size") {
+      params.marker_size = param.as_double();
+    } else if (param.get_name().rfind("aruco", 0) == 0) {
+      aruco_param_changed = true;
+    } else {
+      // Unknown parameter, ignore
+      continue;
+    }
+
+    RCLCPP_INFO_STREAM(
+      node.get_logger(),
+      "Parameter \"" << param.get_name() << "\" changed to " << param.value_to_string());
+  }
+
+  if (aruco_param_changed) {
+    retrieve_aruco_parameters(node, detector_parameters);
   }
 }
 
