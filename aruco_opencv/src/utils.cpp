@@ -72,6 +72,14 @@ const std::unordered_map<std::string, ArucoDictType> ARUCO_DICT_MAP = {
   {"APRILTAG_36h11", ArucoDictType::DICT_APRILTAG_36h11},
 };
 
+PoseSelectorStrategy parse_selector_strategy(const std::string & name)
+{
+  if (name == "PLANE_NORMAL_PARALLEL") {
+    return PoseSelectorStrategy::PLANE_NORMAL_PARALLEL;
+  }
+  return PoseSelectorStrategy::REPROJECTION_ERROR;
+}
+
 std::string pose_selector_strategy_to_string(PoseSelectorStrategy strategy)
 {
   switch (strategy) {

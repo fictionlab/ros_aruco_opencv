@@ -17,6 +17,7 @@ add_library(${PROJECT_NAME} SHARED
   src/aruco_tracker.cpp
   src/detector.cpp
   src/board_loader.cpp
+  src/parameters.cpp
   src/utils.cpp
 )
 target_link_libraries(${PROJECT_NAME}
