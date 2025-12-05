@@ -24,6 +24,9 @@
 #include <string>
 #include <vector>
 
+#include <opencv2/aruco.hpp>
+#include <opencv2/calib3d.hpp>
+
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -41,8 +44,31 @@ struct CoreParams
   int qos_dur;
   int qos_depth;
   bool publish_tf;
-  double marker_size;
   std::string board_descriptions_path;
+};
+
+/// @brief Strategy for selecting the best pose among multiple candidates
+enum class PoseSelectorStrategy
+{
+  /// Select pose with the lowest reprojection error
+  REPROJECTION_ERROR,
+  /// Select pose with the plane normal most parallel to camera view direction
+  PLANE_NORMAL_PARALLEL,
+};
+
+/// @brief Configuration for pose selection
+struct PoseSelectorConfig
+{
+  /// Strategy to use for pose selection
+  PoseSelectorStrategy strategy = PoseSelectorStrategy::REPROJECTION_ERROR;
+  /// Enable debug output
+  bool debug = false;
+};
+
+struct DetectorParams
+{
+  double marker_size;
+  PoseSelectorConfig pose_selector{};
 };
 
 template<class NodeT, typename T>
@@ -167,6 +193,21 @@ inline void declare_aruco_parameters(rclcpp_lifecycle::LifecycleNode & node)
     "aruco.minMarkerLengthRatioOriginalImg",
     default_parameters->minMarkerLengthRatioOriginalImg, 0.0, 1.0);
   #endif
+}
+
+inline void declare_detector_parameters(rclcpp_lifecycle::LifecycleNode & node)
+{
+  declare_param(node, "marker_size", 0.15, true);
+  declare_param(node, "pose_selector.strategy", std::string("REPROJECTION_ERROR"), true);
+  declare_param(node, "pose_selector.debug", false, true);
+}
+
+inline PoseSelectorStrategy parse_selector_strategy(const std::string & name)
+{
+  if (name == "PLANE_NORMAL_PARALLEL") {
+    return PoseSelectorStrategy::PLANE_NORMAL_PARALLEL;
+  }
+  return PoseSelectorStrategy::REPROJECTION_ERROR;
 }
 
 inline void retrieve_aruco_parameters(
@@ -334,9 +375,9 @@ inline void declare_all_parameters(rclcpp_lifecycle::LifecycleNode & node)
       static_cast<int>(RMW_QOS_POLICY_DURABILITY_VOLATILE));
   declare_param(node, "image_sub_qos.depth", 1);
   declare_param(node, "publish_tf", true, true);
-  declare_param(node, "marker_size", 0.15, true);
   declare_param(node, "board_descriptions_path", std::string(""));
   declare_aruco_parameters(node);
+  declare_detector_parameters(node);
 }
 
 inline CoreParams retrieve_core_parameters(rclcpp_lifecycle::LifecycleNode & node)
@@ -351,7 +392,6 @@ inline CoreParams retrieve_core_parameters(rclcpp_lifecycle::LifecycleNode & nod
   node.get_parameter("image_sub_qos.durability", out.qos_dur);
   node.get_parameter("image_sub_qos.depth", out.qos_depth);
   node.get_parameter("publish_tf", out.publish_tf);
-  get_param(node, "marker_size", out.marker_size, "Marker size: ");
   node.get_parameter("board_descriptions_path", out.board_descriptions_path);
   return out;
 }
@@ -362,11 +402,6 @@ inline rcl_interfaces::msg::SetParametersResult validate_core_parameters(
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
   for (const auto & param : parameters) {
-    if (param.get_name() == "marker_size" && param.as_double() <= 0.0) {
-      result.successful = false;
-      result.reason = "marker_size must be positive";
-      return result;
-    }
     if (param.get_name() == "image_sub_qos.depth" && param.as_int() < 1) {
       result.successful = false;
       result.reason = "image_sub_qos.depth must be >= 1";
@@ -377,16 +412,55 @@ inline rcl_interfaces::msg::SetParametersResult validate_core_parameters(
   return result;
 }
 
+inline rcl_interfaces::msg::SetParametersResult validate_detector_parameters(
+  const std::vector<rclcpp::Parameter> & parameters)
+{
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+  for (const auto & param : parameters) {
+    if (param.get_name() == "marker_size" && param.as_double() <= 0.0) {
+      result.successful = false;
+      result.reason = "marker_size must be positive";
+      return result;
+    }
+    if (param.get_name() == "pose_selector.strategy") {
+      std::string strategy = param.as_string();
+      if (strategy != "REPROJECTION_ERROR" && strategy != "PLANE_NORMAL_PARALLEL") {
+        result.successful = false;
+        result.reason =
+          "pose_selector.strategy must be one of: REPROJECTION_ERROR, PLANE_NORMAL_PARALLEL";
+        return result;
+      }
+    }
+  }
+  return result;
+}
+
+inline DetectorParams retrieve_detector_parameters(rclcpp_lifecycle::LifecycleNode & node)
+{
+  DetectorParams out{};
+  std::string strategy_name;
+  node.get_parameter("marker_size", out.marker_size);
+  node.get_parameter("pose_selector.strategy", strategy_name);
+  node.get_parameter("pose_selector.debug", out.pose_selector.debug);
+  out.pose_selector.strategy = parse_selector_strategy(strategy_name);
+  return out;
+}
+
 inline void update_dynamic_parameters(
   rclcpp_lifecycle::LifecycleNode & node,
   const std::vector<rclcpp::Parameter> & parameters,
-  CoreParams & params,
-  cv::Ptr<cv::aruco::DetectorParameters> & detector_parameters)
+  DetectorParams & detector_params,
+  cv::Ptr<cv::aruco::DetectorParameters> & aruco_parameters)
 {
   bool aruco_param_changed = false;
   for (auto & param : parameters) {
     if (param.get_name() == "marker_size") {
-      params.marker_size = param.as_double();
+      detector_params.marker_size = param.as_double();
+    } else if (param.get_name() == "pose_selector.strategy") {
+      detector_params.pose_selector.strategy = parse_selector_strategy(param.as_string());
+    } else if (param.get_name() == "pose_selector.debug") {
+      detector_params.pose_selector.debug = param.as_bool();
     } else if (param.get_name().rfind("aruco", 0) == 0) {
       aruco_param_changed = true;
     } else {
@@ -400,7 +474,7 @@ inline void update_dynamic_parameters(
   }
 
   if (aruco_param_changed) {
-    retrieve_aruco_parameters(node, detector_parameters);
+    retrieve_aruco_parameters(node, aruco_parameters);
   }
 }
 

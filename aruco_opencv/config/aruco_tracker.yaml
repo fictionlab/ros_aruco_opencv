@@ -15,6 +15,18 @@
     publish_tf: true
     marker_size: 0.0742
 
+    pose_selector:
+      # The solver used in Perspective-n-Point (PnP) pose computation used for each marker can
+      # return multiple solutions (typically 2). This parameter defines the strategy to select
+      # the best one. Available strategies are:
+      # - REPROJECTION_ERROR: selects the solution with the lowest reprojection error
+      # - PLANE_NORMAL_PARALLEL: selects the solution whose marker plane normal is the most
+      #   parallel to the camera optical axis (i.e., Z axis in camera frame)
+      strategy: REPROJECTION_ERROR
+
+      # Enable debug log output for the pose selection process
+      debug: false
+
     # Dynamically reconfigurable Detector parameters
     # https://docs.opencv.org/4.2.0/d5/dae/tutorial_aruco_detection.html
     aruco:
