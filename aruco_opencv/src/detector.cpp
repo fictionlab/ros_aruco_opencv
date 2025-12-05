@@ -56,6 +56,7 @@ void ArucoDetector::set_aruco_parameters(const cv::Ptr<cv::aruco::DetectorParame
 
 void ArucoDetector::update_marker_object_points(double marker_size)
 {
+  std::lock_guard<std::mutex> lk(intrinsics_mutex_);
   marker_obj_points_.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_size / 2.f, marker_size / 2.f, 0);
   marker_obj_points_.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_size / 2.f, marker_size / 2.f, 0);
   marker_obj_points_.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(marker_size / 2.f, -marker_size / 2.f, 0);
