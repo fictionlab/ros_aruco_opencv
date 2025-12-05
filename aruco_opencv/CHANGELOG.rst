@@ -2,6 +2,13 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* refactor: Move parameter handling to different file (`#57 <https://github.com/fictionlab/ros_aruco_opencv/issues/57>`_)
+* feat: Add pose selection strategies (`#56 <https://github.com/fictionlab/ros_aruco_opencv/issues/56>`_)
+* refactor: Split implementation into helper classes/functions (`#55 <https://github.com/fictionlab/ros_aruco_opencv/issues/55>`_)
+* Contributors: Błażej Sowa
+
 6.0.2 (2025-05-21)
 ------------------
 * Don't use deprecated tf2 headers (`#53 <https://github.com/fictionlab/ros_aruco_opencv/issues/53>`_)
