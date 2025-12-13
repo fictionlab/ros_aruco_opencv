@@ -73,9 +73,7 @@ static cv::Ptr<cv::aruco::Board> make_grid_board(
     }
   }
 #if CV_VERSION_MAJOR > 4 || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7)
-  std::vector<int> ids(obj_points.size());
-  std::iota(ids.begin(), ids.end(), bd.first_id);
-  return cv::makePtr<cv::aruco::Board>(obj_points, *dict, ids);
+  return cv::makePtr<cv::aruco::Board>(obj_points, *dict, board->getIds());
 #else
   return cv::aruco::Board::create(obj_points, dict, board->ids);
 #endif
