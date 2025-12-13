@@ -2,6 +2,11 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix: Resolve redeclaration of IDs in make_grid_board function (`#62 <https://github.com/fictionlab/ros_aruco_opencv/issues/62>`_) (`#63 <https://github.com/fictionlab/ros_aruco_opencv/issues/63>`_)
+* Contributors: Błażej Sowa
+
 2.4.0 (2025-12-05)
 ------------------
 * refactor: Move parameter handling to different file (backport `#57 <https://github.com/fictionlab/ros_aruco_opencv/issues/57>`_) (`#60 <https://github.com/fictionlab/ros_aruco_opencv/issues/60>`_)
