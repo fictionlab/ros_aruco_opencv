@@ -333,7 +333,14 @@ protected:
       return;
     }
 
-    auto cv_ptr = cv_bridge::toCvShare(img_msg);
+    cv_bridge::CvImageConstPtr cv_ptr;
+    if(img_msg->encoding == "bgra8"){
+      RCLCPP_INFO_ONCE(this->get_logger(), "image has been converted to bgr8");
+      cv_ptr = cv_bridge::toCvShare(img_msg, "bgr8"); 
+    }
+    else{
+      cv_ptr = cv_bridge::toCvShare(img_msg);
+    }
     process_image(cv_ptr);
   }
 
