@@ -36,6 +36,7 @@
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/image_encodings.hpp"
 #include "image_transport/camera_common.hpp"
 
 #include "aruco_opencv_msgs/msg/aruco_detection.hpp"
