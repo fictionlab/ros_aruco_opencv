@@ -2,6 +2,11 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add support for camera with bgra8 encoding (`#64 <https://github.com/fictionlab/ros_aruco_opencv/issues/64>`_)
+* Contributors: Hubert, Błażej Sowa
+
 6.1.1 (2025-12-13)
 ------------------
 * fix: Resolve redeclaration of IDs in make_grid_board function (`#62 <https://github.com/fictionlab/ros_aruco_opencv/issues/62>`_)
