@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+6.1.2 (2026-04-27)
+------------------
 * Add support for camera with bgra8 encoding (`#64 <https://github.com/fictionlab/ros_aruco_opencv/issues/64>`_)
 * Contributors: Hubert, Błażej Sowa
 
