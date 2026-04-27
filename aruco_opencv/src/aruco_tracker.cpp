@@ -37,6 +37,7 @@
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/image_encodings.hpp"
 #include "image_transport/camera_common.hpp"
 
 #include "aruco_opencv_msgs/msg/aruco_detection.hpp"
@@ -333,7 +334,12 @@ protected:
       return;
     }
 
-    auto cv_ptr = cv_bridge::toCvShare(img_msg);
+    cv_bridge::CvImageConstPtr cv_ptr;
+    if (sensor_msgs::image_encodings::hasAlpha(img_msg->encoding)) {
+      cv_ptr = cv_bridge::toCvCopy(img_msg, "bgr8");
+    } else {
+      cv_ptr = cv_bridge::toCvShare(img_msg);
+    }
     process_image(cv_ptr);
   }
 
