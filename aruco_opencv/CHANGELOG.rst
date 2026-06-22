@@ -2,8 +2,8 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+7.0.0 (2026-06-22)
+------------------
 * feat: Use image_transport for publishing debug images (`#66 <https://github.com/fictionlab/ros_aruco_opencv/issues/66>`_)
 * Contributors: Błażej Sowa
 
