@@ -2,6 +2,11 @@
 Changelog for package aruco_opencv
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* feat: Use image_transport for publishing debug images (`#66 <https://github.com/fictionlab/ros_aruco_opencv/issues/66>`_)
+* Contributors: Błażej Sowa
+
 6.1.2 (2026-04-27)
 ------------------
 * Add support for camera with bgra8 encoding (`#64 <https://github.com/fictionlab/ros_aruco_opencv/issues/64>`_)
