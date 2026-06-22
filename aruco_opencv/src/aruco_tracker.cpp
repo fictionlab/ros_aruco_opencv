@@ -38,6 +38,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/image_encodings.hpp"
 #include "image_transport/camera_common.hpp"
+#include "image_transport/image_transport.hpp"
 
 #include "aruco_opencv_msgs/msg/aruco_detection.hpp"
 #include "aruco_opencv_msgs/msg/board_pose.hpp"
@@ -65,7 +66,7 @@ class ArucoTracker : public rclcpp_lifecycle::LifecycleNode
   PostSetParametersCallbackHandle::SharedPtr post_set_parameter_callback_handle_;
   rclcpp_lifecycle::LifecyclePublisher<aruco_opencv_msgs::msg::ArucoDetection>::SharedPtr
     detection_pub_;
-  rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr debug_pub_;
+  std::shared_ptr<image_transport::Publisher> debug_pub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr cam_info_sub_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr img_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_img_sub_;
@@ -122,7 +123,8 @@ public:
 
     detection_pub_ = create_publisher<aruco_opencv_msgs::msg::ArucoDetection>(
       "aruco_detections", 5);
-    debug_pub_ = create_publisher<sensor_msgs::msg::Image>("~/debug", 5);
+    debug_pub_ = std::make_shared<image_transport::Publisher>(
+        image_transport::create_publisher(*this, "~/debug", rclcpp::QoS(5)));
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -139,7 +141,6 @@ public:
     LifecycleNode::on_activate(state);
 
     detection_pub_->on_activate();
-    debug_pub_->on_activate();
 
     on_set_parameter_callback_handle_ = add_on_set_parameters_callback(
       std::bind(&ArucoTracker::callback_on_set_parameters, this, std::placeholders::_1));
@@ -192,7 +193,6 @@ public:
     tf_buffer_.reset();
 
     detection_pub_->on_deactivate();
-    debug_pub_->on_deactivate();
 
     return LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -432,7 +432,7 @@ protected:
 
     detection_pub_->publish(detection);
 
-    if (debug_pub_->get_subscription_count() > 0) {
+    if (debug_pub_->getNumSubscribers() > 0) {
       auto debug_cv_ptr = std::make_shared<cv_bridge::CvImage>();
       debug_cv_ptr->header = cv_ptr->header;
       debug_cv_ptr->encoding = cv_ptr->encoding;
